@@ -27,9 +27,13 @@ const (
 type Session struct {
 	id      string
 	conn    *websocket.Conn
-	apps    map[string]*toolschema.App
+	apps    *toolschema.Registry
 	infer   inference.Service
 	log     *slog.Logger
+	// authAppID is the appId the WebSocket handshake was verified against
+	// (ws.Handler.Auth), or "" if auth is disabled. When set, it overrides
+	// whatever appId the client's hello message claims — see handleHello.
+	authAppID string
 
 	writeMu sync.Mutex
 
@@ -40,14 +44,17 @@ type Session struct {
 }
 
 // NewSession wires a freshly-upgraded connection into a Session and starts
-// its read/write pumps. It blocks until the connection closes.
-func NewSession(ctx context.Context, conn *websocket.Conn, apps map[string]*toolschema.App, infer inference.Service, log *slog.Logger) {
+// its read/write pumps. It blocks until the connection closes. authAppID is
+// the server-verified appId from the handshake (empty when auth is
+// disabled); see Session.authAppID.
+func NewSession(ctx context.Context, conn *websocket.Conn, apps *toolschema.Registry, infer inference.Service, log *slog.Logger, authAppID string) {
 	s := &Session{
 		id:           randomID(),
 		conn:         conn,
 		apps:         apps,
 		infer:        infer,
 		log:          log,
+		authAppID:    authAppID,
 		pendingCalls: make(map[string]chan protocol.ToolResultPayload),
 	}
 	s.run(ctx)
@@ -133,9 +140,19 @@ func (s *Session) handleHello(env protocol.Envelope) {
 		return
 	}
 
-	app, ok := s.apps[p.AppID]
+	// The server-verified appId from the handshake token always wins over
+	// the client-claimed one: trusting p.AppID here is exactly the
+	// impersonation gap auth closes (see ws.Handler.ServeHTTP). Auth
+	// disabled (authAppID == "") falls back to the old dev-mode behavior of
+	// trusting the client.
+	appID := p.AppID
+	if s.authAppID != "" {
+		appID = s.authAppID
+	}
+
+	app, ok := s.apps.Get(appID)
 	if !ok {
-		s.sendError(env.RequestID, "unknown appId: "+p.AppID)
+		s.sendError(env.RequestID, "unknown appId: "+appID)
 		return
 	}
 
@@ -188,9 +205,10 @@ func (s *Session) handlePrompt(ctx context.Context, env protocol.Envelope) {
 	}
 
 	result, err := s.infer.Complete(ctx, inference.Request{
-		Prompt:  p.Text,
-		Context: promptContext,
-		Tools:   codegen.ToLLMTools(app),
+		Prompt:    p.Text,
+		Context:   promptContext,
+		Tools:     codegen.ToLLMTools(app),
+		SessionID: s.id,
 	})
 	if err != nil {
 		s.sendError(env.RequestID, "inference error: "+err.Error())

@@ -47,18 +47,35 @@ func main() {
 	log.Fatal(http.ListenAndServe(":8081", nil))
 }
 
+// openDB picks the backing database from DB_DRIVER (default "sqlserver",
+// so existing deployments keep working unchanged). "postgres" routes
+// through openPostgresDB (postgres.go), which adapts questions.go's
+// SQL-Server-flavored queries to run against Postgres without questions.go
+// itself knowing the difference.
 func openDB() (*sql.DB, error) {
-	query := url.Values{}
-	query.Add("database", os.Getenv("DB_DATABASE"))
-	query.Add("encrypt", "disable")
+	switch envOr("DB_DRIVER", "sqlserver") {
+	case "postgres":
+		dsn := buildPostgresDSN(
+			os.Getenv("DB_HOST"),
+			envOr("DB_PORT", "5432"),
+			os.Getenv("DB_DATABASE"),
+			os.Getenv("DB_USERNAME"),
+			os.Getenv("DB_PASSWORD"),
+		)
+		return openPostgresDB(dsn)
+	default:
+		query := url.Values{}
+		query.Add("database", os.Getenv("DB_DATABASE"))
+		query.Add("encrypt", "disable")
 
-	u := &url.URL{
-		Scheme:   "sqlserver",
-		User:     url.UserPassword(os.Getenv("DB_USERNAME"), os.Getenv("DB_PASSWORD")),
-		Host:     hostPort(os.Getenv("DB_HOST"), envOr("DB_PORT", "1433")),
-		RawQuery: query.Encode(),
+		u := &url.URL{
+			Scheme:   "sqlserver",
+			User:     url.UserPassword(os.Getenv("DB_USERNAME"), os.Getenv("DB_PASSWORD")),
+			Host:     hostPort(os.Getenv("DB_HOST"), envOr("DB_PORT", "1433")),
+			RawQuery: query.Encode(),
+		}
+		return sql.Open("sqlserver", u.String())
 	}
-	return sql.Open("sqlserver", u.String())
 }
 
 // hostPort 組出 URL 用的 host:port。

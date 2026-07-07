@@ -33,6 +33,13 @@ type Request struct {
 	Prompt  string
 	Context json.RawMessage
 	Tools   []codegen.LLMTool
+
+	// SessionID identifies the end-user connection this prompt belongs to
+	// (the WebSocket session id). Implementations use it to isolate
+	// conversation state between users: two prompts share LLM conversation
+	// history if and only if they carry the same SessionID. Empty means "no
+	// isolation requested" (single-caller/dev use).
+	SessionID string
 }
 
 // Service is the boundary this platform depends on. Swap MockService for a

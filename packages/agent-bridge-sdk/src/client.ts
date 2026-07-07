@@ -18,6 +18,19 @@ export interface AgentBridgeOptions {
   /** The developer app ID whose tool set this session should load. */
   appId: string;
   /**
+   * API key issued for this app (see backend's `genkey` command). Sent as a
+   * `token` query parameter on the WebSocket handshake — browsers cannot
+   * attach custom headers to a WebSocket upgrade request, so this is the
+   * only place it can travel. The backend verifies it and resolves the
+   * connection's appId from it server-side; when set, this always overrides
+   * whatever `appId` is passed above for authorization purposes; unset
+   * connects in the backend's dev/no-auth mode if it's configured to allow
+   * that. Because the key rides in the URL, only ever connect over wss:// —
+   * plain ws:// puts it on the wire (and often in server access logs) in
+   * plaintext.
+   */
+  apiKey?: string;
+  /**
    * Tool handlers keyed by tool name. Only names the backend already knows
    * about (from the app's tool definitions) will ever be invoked, but the
    * SDK also refuses to call anything not present in this map — the
@@ -86,8 +99,15 @@ export class AgentBridge {
     this.ws?.close();
   }
 
+  private wsUrl(): string {
+    if (!this.opts.apiKey) return this.opts.url;
+    const url = new URL(this.opts.url);
+    url.searchParams.set("token", this.opts.apiKey);
+    return url.toString();
+  }
+
   private connect(): void {
-    const ws = new WebSocket(this.opts.url);
+    const ws = new WebSocket(this.wsUrl());
     this.ws = ws;
 
     ws.addEventListener("open", () => {
