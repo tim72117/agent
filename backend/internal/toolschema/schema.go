@@ -29,12 +29,12 @@ type Tool struct {
 // ParameterSchema is a (deliberately small) subset of JSON Schema, enough to
 // describe LLM tool parameters and generate matching TypeScript types.
 type ParameterSchema struct {
-	Type        string                     `yaml:"type" json:"type"`
-	Description string                     `yaml:"description,omitempty" json:"description,omitempty"`
+	Type        string                      `yaml:"type" json:"type"`
+	Description string                      `yaml:"description,omitempty" json:"description,omitempty"`
 	Properties  map[string]*ParameterSchema `yaml:"properties,omitempty" json:"properties,omitempty"`
-	Items       *ParameterSchema           `yaml:"items,omitempty" json:"items,omitempty"`
-	Required    []string                   `yaml:"required,omitempty" json:"required,omitempty"`
-	Enum        []string                   `yaml:"enum,omitempty" json:"enum,omitempty"`
+	Items       *ParameterSchema            `yaml:"items,omitempty" json:"items,omitempty"`
+	Required    []string                    `yaml:"required,omitempty" json:"required,omitempty"`
+	Enum        []string                    `yaml:"enum,omitempty" json:"enum,omitempty"`
 }
 
 // App groups the tools that belong to one developer application (one

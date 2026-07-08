@@ -25,11 +25,11 @@ const (
 
 // Session represents one connected browser tab.
 type Session struct {
-	id      string
-	conn    *websocket.Conn
-	apps    *toolschema.Registry
-	infer   inference.Service
-	log     *slog.Logger
+	id    string
+	conn  *websocket.Conn
+	apps  *toolschema.Registry
+	infer inference.Service
+	log   *slog.Logger
 	// authAppID is the appId the WebSocket handshake was verified against
 	// (ws.Handler.Auth), or "" if auth is disabled. When set, it overrides
 	// whatever appId the client's hello message claims — see handleHello.

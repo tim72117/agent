@@ -104,4 +104,3 @@ func (a *App) Validate() error {
 
 	return nil
 }
-
