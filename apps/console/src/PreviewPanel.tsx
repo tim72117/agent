@@ -29,7 +29,7 @@ export function PreviewPanel({ app }: { app: App }) {
           <button
             key={t.id}
             type="button"
-            className={tab === t.id ? 'active' : undefined}
+            className={tab === t.id ? 'tab-btn active' : 'tab-btn'}
             onClick={() => setTab(t.id)}
           >
             {t.label}

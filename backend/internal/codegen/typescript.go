@@ -16,7 +16,7 @@ import (
 func TypeScript(app *toolschema.App) (string, error) {
 	var b strings.Builder
 
-	fmt.Fprintf(&b, "// Code generated from tools/%s.yaml by agent-tool-platform codegen. DO NOT EDIT.\n\n", app.AppID)
+	fmt.Fprintf(&b, "// Code generated from tools/%s.yaml by onagent codegen. DO NOT EDIT.\n\n", app.AppID)
 
 	names := make([]string, 0, len(app.Tools))
 	for _, t := range app.Tools {

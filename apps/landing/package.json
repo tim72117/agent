@@ -1,0 +1,15 @@
+{
+  "name": "@onagent/landing",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Marketing landing page for onagent. A single self-contained static page — Vite just serves/builds it, no framework.",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "devDependencies": {
+    "vite": "^6.0.2"
+  }
+}

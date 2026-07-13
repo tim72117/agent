@@ -57,7 +57,7 @@ export interface AgentBridgeOptions {
 type QueuedSend = { type: string; requestId?: string; payload?: unknown };
 
 /**
- * Browser-side bridge between a page and the agent-tool-platform backend.
+ * Browser-side bridge between a page and the onagent backend.
  *
  * Modeled after gtag.js's stub-function-plus-queue pattern: calls made
  * before the socket is open (or during a reconnect) are buffered and

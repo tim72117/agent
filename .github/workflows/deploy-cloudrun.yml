@@ -1,0 +1,81 @@
+name: Deploy to Cloud Run
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'backend/**'
+      - 'apps/**'
+      - 'Dockerfile'
+      - '.dockerignore'
+      - '.github/workflows/deploy-cloudrun.yml'
+  workflow_dispatch:
+    inputs:
+      skip_build:
+        description: '只部署不重新 build（使用現有 latest image）'
+        type: boolean
+        default: false
+
+env:
+  # TODO: 這是 placeholder,請換成使用者實際建立的 GCP 專案 ID(見 deploy/setup.sh)。
+  GCP_PROJECT_ID: "onagent-prod"
+  CLOUD_RUN_SERVICE: "onagent-server"
+  CLOUD_RUN_REGION: "asia-east1"
+  IMAGE: "asia-east1-docker.pkg.dev/onagent-prod/cloud-run-source-deploy/onagent-server"
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.WIF_PROVIDER }}
+          service_account: ${{ secrets.WIF_SERVICE_ACCOUNT }}
+
+      - name: Configure Docker for Artifact Registry
+        run: gcloud auth configure-docker asia-east1-docker.pkg.dev --quiet
+
+      - name: Build Docker image
+        env:
+          DOCKER_BUILDKIT: "1"
+          GH_PAT: ${{ secrets.GH_PAT }}
+        run: |
+          # --secret (not --build-arg) so GH_PAT never lands in the image's
+          # layer history — it only exists as a file during the one RUN
+          # step in the Dockerfile that reads it.
+          docker build \
+            --secret id=gh_pat,env=GH_PAT \
+            -t ${{ env.IMAGE }}:${{ github.sha }} \
+            -t ${{ env.IMAGE }}:latest \
+            .
+
+      - name: Push image
+        run: |
+          docker push ${{ env.IMAGE }}:${{ github.sha }}
+          docker push ${{ env.IMAGE }}:latest
+
+      - name: Deploy to Cloud Run
+        run: |
+          gcloud run deploy ${{ env.CLOUD_RUN_SERVICE }} \
+            --image=${{ env.IMAGE }}:${{ github.sha }} \
+            --region=${{ env.CLOUD_RUN_REGION }} \
+            --update-env-vars=APP_ENV=production,COOKIE_SECURE=true \
+            --update-secrets=DATABASE_URL=DATABASE_URL:latest,ALLOWED_ORIGINS=ALLOWED_ORIGINS:latest \
+            --quiet
+
+      - name: Show Cloud Run URL
+        run: |
+          URL=$(gcloud run services describe ${{ env.CLOUD_RUN_SERVICE }} \
+            --region ${{ env.CLOUD_RUN_REGION }} \
+            --format 'value(status.url)')
+          echo "### 部署完成" >> "$GITHUB_STEP_SUMMARY"
+          echo "URL: $URL" >> "$GITHUB_STEP_SUMMARY"
+          echo "$URL"

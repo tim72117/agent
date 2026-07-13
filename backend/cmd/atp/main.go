@@ -69,8 +69,9 @@ func usage() {
 
   -api defaults to $ATP_API_URL, or http://localhost:8080 if unset.
   -console (login --web only) defaults to $ATP_CONSOLE_URL, or
-  http://localhost:5173 if unset — where the console front-end (not the
-  API) is served, since that's what opens in the browser.`)
+  http://localhost:5173 if unset — the origin the console front-end (not
+  the API) is served from; the CLI appends /app/cli-auth itself, since
+  that's the path prefix the console is mounted under.`)
 }
 
 // --- login -------------------------------------------------------------
@@ -176,7 +177,7 @@ func runLoginWeb(args []string) error {
 	// the startCliAuth call above, server-side, before this URL ever
 	// existed, so nothing in the URL itself can redirect a minted token
 	// anywhere an attacker chose.
-	authURL := consoleBase + "/cli-auth?" + url.Values{"id": {id}}.Encode()
+	authURL := consoleBase + "/app/cli-auth?" + url.Values{"id": {id}}.Encode()
 
 	fmt.Println("Opening your browser to sign in...")
 	fmt.Println("If it doesn't open automatically, visit:")
@@ -563,7 +564,7 @@ func tokenPath() (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return filepath.Join(dir, "agent-tool-platform", "token"), nil
+	return filepath.Join(dir, "onagent", "token"), nil
 }
 
 func saveToken(token string) error {

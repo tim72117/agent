@@ -45,7 +45,8 @@ export function ToolForm({
       <label className="field">
         <span className="micro-label">Description</span>
         <textarea
-          rows={2}
+          className="tool-description-input"
+          rows={3}
           placeholder="What does this tool do, and when should the model call it?"
           value={tool.description}
           onChange={(e) => onChange({ ...tool, description: e.target.value })}

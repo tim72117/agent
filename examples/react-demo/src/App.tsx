@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { AgentBridge } from "@agent-tool-platform/agent-bridge-sdk";
+import { AgentBridge } from "@onagent/agent-bridge-sdk";
 import "./App.css";
 
 const WS_URL = import.meta.env.VITE_AGENT_WS_URL ?? "ws://localhost:8080/ws";

@@ -8,6 +8,7 @@ dist/
 # Go
 /backend/agent-tool-platform
 /backend/server
+/backend/*.exe
 
 # Backend runtime artifacts — sessions/ holds end-user conversation
 # transcripts (want's per-connection history files) and must never be

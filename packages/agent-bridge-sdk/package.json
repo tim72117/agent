@@ -1,7 +1,7 @@
 {
-  "name": "@agent-tool-platform/agent-bridge-sdk",
+  "name": "@onagent/agent-bridge-sdk",
   "version": "0.1.0",
-  "description": "Browser SDK that bridges front-end apps to the agent-tool-platform inference backend: pushes page context/state over WebSocket and dispatches tool calls back into the page.",
+  "description": "Browser SDK that bridges front-end apps to the onagent inference backend: pushes page context/state over WebSocket and dispatches tool calls back into the page.",
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",

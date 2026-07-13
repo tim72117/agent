@@ -1,0 +1,33 @@
+# 避免把不必要 / 含密碼的檔案送進 build context(也加快建置)。
+# 注意:backend/、apps/landing/、apps/console/ 必須保留(build 需要),
+# 這裡只排除產物與機密。
+
+# 機密:.env 含 DB 連線字串/密碼,絕不進映像(env 改用 --env-file / Cloud Run 變數注入)
+.env
+**/.env
+backend/.env
+
+# Go 執行期產物與本機二進位
+backend/server.exe
+backend/atp.exe
+**/*.exe
+backend/logs/
+backend/sessions/
+backend/entries.jsonl
+
+# node_modules 排除:Dockerfile 用 npm ci 在容器內安裝
+**/node_modules/
+
+# 前端 dist 也排除:Dockerfile 在容器內 build。注意 backend/cmd/server/web/{landing,console}/
+# 的 checked-in placeholder index.html 不受影響,Dockerfile 會在複製真正 dist 前先 rm -rf 清掉它們。
+apps/*/dist/
+
+# 與部署無關的目錄
+examples/
+mockups/
+docs/
+
+# 版控與系統檔
+.git/
+.gitignore
+**/.DS_Store

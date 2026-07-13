@@ -1,4 +1,4 @@
-# agent-tool-platform
+# onagent
 
 A platform that lets developers describe front-end capabilities as LLM
 tools, then generates both the LLM-facing tool schema and the matching
@@ -47,7 +47,7 @@ docs/security-and-transport.md   Cross-site transport design notes (GA-derived)
      inference service.
    - `GET /apps/{appId}/tools.ts` — generated TypeScript (`ToolHandlers`
      interface + arg/result types) the developer implements against.
-3. The developer's page embeds `@agent-tool-platform/agent-bridge-sdk`,
+3. The developer's page embeds `@onagent/agent-bridge-sdk`,
    constructs an `AgentBridge` with `appId` + a `tools` object implementing
    the generated `ToolHandlers` interface, and calls `sendContext()` /
    `prompt()`.

@@ -1,0 +1,34 @@
+<!doctype html>
+<!--
+  Placeholder only — NOT the real landing page.
+
+  This file exists so `//go:embed all:web/landing` in cmd/server/web.go has
+  a non-empty directory to embed at compile time (go:embed fails the build
+  on a completely empty dir). In a real build/deploy, the Dockerfile runs
+  `npm run build` inside apps/landing and copies apps/landing/dist's
+  contents over this directory *before* `go build` runs, so the embedded
+  FS contains the real site instead of this file.
+
+  If you are seeing this in a browser, you're running `go run`/the compiled
+  server binary locally without that copy step. For local frontend
+  development, don't use this route — run the landing app's own Vite dev
+  server instead:
+
+    cd apps/landing && npm run dev
+
+  See cmd/server/web.go for the embed + serving logic and the startup log
+  line that reports whether this is a placeholder or a real build.
+-->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>landing placeholder</title>
+  </head>
+  <body>
+    <p>
+      This is a build-time placeholder for apps/landing's production build.
+      Run <code>cd apps/landing &amp;&amp; npm run dev</code> for local
+      development instead of hitting this Go server route.
+    </p>
+  </body>
+</html>

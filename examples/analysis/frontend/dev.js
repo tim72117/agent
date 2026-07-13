@@ -7,7 +7,7 @@ import 'vuetify/styles'
 
 import moment from 'moment'
 import Menu from './components/Menu.vue'
-import { AgentBridge } from '@agent-tool-platform/agent-bridge-sdk'
+import { AgentBridge } from '@onagent/agent-bridge-sdk'
 
 const AGENT_WS_URL = import.meta.env.VITE_AGENT_WS_URL ?? 'ws://localhost:18080/ws'
 const AGENT_API_KEY = import.meta.env.VITE_AGENT_API_KEY

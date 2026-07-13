@@ -1,5 +1,5 @@
 {
-    "name": "@cere/analysis",
+    "name": "@onagent/example-analysis-frontend",
     "type": "module",
     "scripts": {
         "dev": "vite --config vite.dev.config.js",
@@ -8,7 +8,7 @@
         "preview": "vite preview --config vite.preview.config.js"
     },
     "dependencies": {
-        "@agent-tool-platform/agent-bridge-sdk": "file:../../../packages/agent-bridge-sdk"
+        "@onagent/agent-bridge-sdk": "file:../../../packages/agent-bridge-sdk"
     },
     "devDependencies": {
         "@mdi/font": "^7.4.47",

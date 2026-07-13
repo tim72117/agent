@@ -1,0 +1,589 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>onagent — 讓你的網站長出 AI 助手</title>
+  <meta
+    name="description"
+    content="定義幾個 tool，平台自動產生 LLM schema 與 TypeScript 型別；嵌入一段瀏覽器 SDK，AI 就能用自然語言直接操作你的頁面——填表單、跳頁、點按鈕。"
+  />
+  <style>
+    :root {
+      --bg: #0d0b07;
+      --bg-2: #100d08;
+      --panel: #1a160e;
+      --panel-2: #1f1a10;
+      --border: #342d1c;
+      --border-soft: #241f13;
+      --text: #f5f1e8;
+      --text-2: #a89b82;
+      --text-3: #71664f;
+      --accent: #c9a24b;
+      --accent-2: #e0c98a;
+      --accent-soft: rgba(201, 162, 75, 0.12);
+      --ok: #7fbf7f;
+      --grad: linear-gradient(135deg, #c9a24b 0%, #e0c98a 100%);
+      --grad-text: linear-gradient(120deg, #f0dfae 0%, #c9a24b 55%, #9c7a2e 100%);
+      --shadow: 0 20px 60px -20px rgba(0, 0, 0, 0.6);
+      --shadow-glow: 0 0 0 1px rgba(201, 162, 75, 0.22), 0 24px 70px -24px rgba(201, 162, 75, 0.32);
+      --max: 1160px;
+      --sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'PingFang TC', 'Microsoft JhengHei', sans-serif;
+      --mono: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--sans);
+      font-size: 16px;
+      line-height: 1.6;
+      -webkit-font-smoothing: antialiased;
+      overflow-x: hidden;
+    }
+    a { color: inherit; text-decoration: none; }
+    h1, h2, h3 { margin: 0; letter-spacing: -0.02em; line-height: 1.1; }
+    p { margin: 0; }
+    ::selection { background: rgba(201, 162, 75, 0.32); }
+
+    .wrap { width: 100%; max-width: var(--max); margin: 0 auto; padding: 0 24px; }
+
+    .bg-fx {
+      position: fixed; inset: 0; z-index: -1; pointer-events: none;
+      background:
+        radial-gradient(60rem 40rem at 82% -10%, rgba(224, 201, 138, 0.08), transparent 60%),
+        radial-gradient(50rem 40rem at 8% 0%, rgba(201, 162, 75, 0.1), transparent 55%);
+    }
+    .bg-grid {
+      position: fixed; inset: 0; z-index: -1; pointer-events: none;
+      background-image:
+        linear-gradient(rgba(255,255,255,0.025) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,0.025) 1px, transparent 1px);
+      background-size: 56px 56px;
+      mask-image: radial-gradient(70% 55% at 50% 0%, #000 0%, transparent 75%);
+    }
+
+    /* nav */
+    header {
+      position: sticky; top: 0; z-index: 50;
+      backdrop-filter: blur(12px);
+      background: rgba(13, 11, 7, 0.72);
+      border-bottom: 1px solid transparent;
+      transition: border-color 0.3s;
+    }
+    header.scrolled { border-bottom-color: var(--border-soft); }
+    .nav { display: flex; align-items: center; justify-content: space-between; height: 64px; }
+    .brand { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 15px; letter-spacing: -0.01em; }
+    .mark {
+      display: grid; place-items: center; width: 30px; height: 30px; border-radius: 9px;
+      background: var(--grad); color: #1a1408; font-size: 16px; font-weight: 700;
+      box-shadow: 0 6px 18px -6px rgba(201, 162, 75, 0.55);
+    }
+    .nav-links { display: flex; align-items: center; gap: 30px; }
+    .nav-links a { color: var(--text-2); font-size: 14px; font-weight: 500; transition: color 0.2s; }
+    .nav-links a:hover { color: var(--text); }
+
+    /* buttons */
+    .btn {
+      display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+      font-family: var(--sans); font-weight: 600; font-size: 14.5px;
+      padding: 11px 18px; border-radius: 10px; border: 1px solid transparent;
+      cursor: pointer; transition: transform 0.15s ease, box-shadow 0.2s, background 0.2s, border-color 0.2s;
+      white-space: nowrap;
+    }
+    .btn-primary { background: var(--grad); color: #1a1408; box-shadow: 0 10px 30px -10px rgba(201, 162, 75, 0.5); }
+    .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 16px 40px -12px rgba(201, 162, 75, 0.65); }
+    .btn-ghost { background: rgba(255,255,255,0.03); border-color: var(--border); color: var(--text); }
+    .btn-ghost:hover { border-color: #4a4128; background: rgba(255,255,255,0.05); transform: translateY(-1px); }
+    .btn-lg { padding: 14px 24px; font-size: 15.5px; border-radius: 11px; }
+
+    /* hero */
+    .hero { padding: 92px 0 40px; }
+    .hero-grid { display: grid; grid-template-columns: 1.05fr 1fr; gap: 56px; align-items: center; }
+    .eyebrow {
+      display: inline-flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600;
+      color: var(--accent-2); background: var(--accent-soft); border: 1px solid rgba(201,162,75,0.3);
+      padding: 6px 13px; border-radius: 999px; margin-bottom: 22px;
+    }
+    .eyebrow .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 0 4px rgba(201,162,75,0.18); }
+    .hero h1 { font-size: clamp(2.3rem, 4.6vw, 3.6rem); font-weight: 800; margin-bottom: 20px; }
+    .hero h1 .g { background: var(--grad-text); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; }
+    .hero-sub { color: var(--text-2); font-size: 18px; line-height: 1.65; max-width: 33em; margin-bottom: 30px; }
+    .hero-cta { display: flex; gap: 12px; flex-wrap: wrap; }
+    .hero-note { margin-top: 18px; font-size: 13px; color: var(--text-3); display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+    .hero-note code { font-family: var(--mono); color: var(--accent-2); background: var(--accent-soft); padding: 2px 7px; border-radius: 6px; font-size: 12.5px; }
+
+    /* terminal */
+    .term {
+      background: linear-gradient(180deg, #16130c 0%, #120f0a 100%);
+      border: 1px solid var(--border); border-radius: 16px; box-shadow: var(--shadow-glow);
+      overflow: hidden; font-family: var(--mono);
+    }
+    .term-bar { display: flex; align-items: center; gap: 8px; padding: 13px 16px; border-bottom: 1px solid var(--border-soft); background: rgba(255,255,255,0.02); }
+    .term-dot { width: 11px; height: 11px; border-radius: 50%; }
+    .term-title { margin-left: 8px; font-size: 12px; color: var(--text-3); font-family: var(--sans); }
+    .term-body { padding: 20px 20px 24px; font-size: 13.5px; line-height: 1.85; min-height: 268px; }
+    .term-line { white-space: pre-wrap; word-break: break-word; }
+    .term .prompt { color: var(--accent); }
+    .term .cmd { color: var(--text); }
+    .term .out { color: var(--text-2); }
+    .term .ok { color: var(--ok); }
+    .term .comment { color: var(--text-3); }
+    .cursor { display: inline-block; width: 8px; height: 16px; transform: translateY(3px); background: var(--accent); animation: blink 1.05s steps(1) infinite; }
+    @keyframes blink { 0%, 50% { opacity: 1; } 51%, 100% { opacity: 0; } }
+
+    section.block { padding: 100px 0; }
+    .sec-head { max-width: 640px; margin: 0 auto 56px; text-align: center; }
+    .sec-tag { font-size: 13px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; color: var(--accent); margin-bottom: 14px; }
+    .sec-head h2 { font-size: clamp(1.8rem, 3.2vw, 2.5rem); font-weight: 800; margin-bottom: 16px; }
+    .sec-head p { color: var(--text-2); font-size: 17px; }
+
+    /* features */
+    .features { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
+    .feature {
+      background: linear-gradient(180deg, var(--panel) 0%, var(--bg-2) 100%);
+      border: 1px solid var(--border-soft); border-radius: 16px; padding: 26px;
+      transition: transform 0.2s ease, border-color 0.2s, box-shadow 0.25s;
+    }
+    .feature:hover { transform: translateY(-4px); border-color: rgba(201,162,75,0.35); box-shadow: var(--shadow); }
+    .feature .ic {
+      display: grid; place-items: center; width: 44px; height: 44px; border-radius: 12px;
+      background: var(--accent-soft); border: 1px solid rgba(201,162,75,0.28); margin-bottom: 18px;
+    }
+    .feature .ic svg { width: 21px; height: 21px; stroke: var(--accent-2); stroke-width: 1.6; fill: none; stroke-linecap: round; stroke-linejoin: round; }
+    .feature h3 { font-size: 17px; font-weight: 700; margin-bottom: 9px; letter-spacing: -0.01em; }
+    .feature p { color: var(--text-2); font-size: 14.5px; line-height: 1.6; }
+    .feature code { font-family: var(--mono); font-size: 12.5px; color: var(--accent-2); }
+
+    /* how it works */
+    .how { background: linear-gradient(180deg, var(--bg) 0%, var(--bg-2) 100%); }
+    .how-grid { display: grid; grid-template-columns: 340px 1fr; gap: 32px; align-items: stretch; }
+    .steps { display: flex; flex-direction: column; gap: 12px; }
+    .step {
+      text-align: left; display: flex; gap: 16px; padding: 20px; border-radius: 14px;
+      border: 1px solid var(--border-soft); background: rgba(255,255,255,0.015);
+      cursor: pointer; transition: border-color 0.2s, background 0.2s; font-family: var(--sans); color: inherit; width: 100%;
+    }
+    .step:hover { border-color: var(--border); }
+    .step.active { border-color: rgba(201,162,75,0.5); background: var(--accent-soft); }
+    .step-num {
+      flex: none; width: 34px; height: 34px; border-radius: 10px; display: grid; place-items: center;
+      font-family: var(--mono); font-weight: 600; font-size: 14px; color: var(--text-2);
+      background: rgba(255,255,255,0.04); border: 1px solid var(--border); transition: all 0.2s;
+    }
+    .step.active .step-num { background: var(--grad); color: #1a1408; border-color: transparent; }
+    .step-txt h3 { font-size: 16px; font-weight: 700; margin-bottom: 5px; }
+    .step-txt p { color: var(--text-2); font-size: 13.5px; line-height: 1.55; }
+    .how-note { margin-top: 6px; font-size: 13px; color: var(--text-3); padding: 0 4px; line-height: 1.6; }
+
+    .code-panel {
+      background: linear-gradient(180deg, #16130c 0%, #120f0a 100%);
+      border: 1px solid var(--border); border-radius: 16px; box-shadow: var(--shadow);
+      overflow: hidden; display: flex; flex-direction: column; min-height: 420px;
+    }
+    .code-top { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; border-bottom: 1px solid var(--border-soft); background: rgba(255,255,255,0.02); }
+    .code-file { display: flex; align-items: center; gap: 9px; font-family: var(--mono); font-size: 12.5px; color: var(--text-2); }
+    .code-file .fdot { width: 9px; height: 9px; border-radius: 50%; background: var(--accent); }
+    .copy-btn {
+      font-family: var(--sans); font-size: 12px; font-weight: 600; color: var(--text-2);
+      background: rgba(255,255,255,0.04); border: 1px solid var(--border); padding: 5px 11px; border-radius: 8px;
+      cursor: pointer; transition: all 0.18s;
+    }
+    .copy-btn:hover { color: var(--text); border-color: #4a4128; }
+    .copy-btn.copied { color: var(--ok); border-color: rgba(127,191,127,0.4); }
+    .code-body { flex: 1; overflow-x: auto; padding: 20px 22px; }
+    pre { margin: 0; font-family: var(--mono); font-size: 13.5px; line-height: 1.75; white-space: pre; tab-size: 2; }
+    .code-pane { display: none; }
+    .code-pane.active { display: block; }
+    .t-key { color: #cbb98f; }
+    .t-str { color: #a8c98a; }
+    .t-com { color: var(--text-3); font-style: italic; }
+    .t-fn { color: var(--accent-2); }
+    .t-kw { color: #d9a463; }
+    .t-punc { color: var(--text-2); }
+    .t-prompt { color: var(--accent); }
+    .t-ok { color: var(--ok); }
+
+    /* use cases */
+    .cases { display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; }
+    .case {
+      position: relative; border: 1px solid var(--border-soft); border-radius: 18px; padding: 30px;
+      background: linear-gradient(180deg, var(--panel) 0%, var(--bg-2) 100%); overflow: hidden;
+      transition: transform 0.2s, border-color 0.2s;
+    }
+    .case:hover { transform: translateY(-4px); border-color: rgba(201,162,75,0.35); }
+    .case-badge {
+      display: inline-block; font-family: var(--mono); font-size: 12px; color: var(--accent-2);
+      background: var(--accent-soft); border: 1px solid rgba(201,162,75,0.28); padding: 4px 10px; border-radius: 7px; margin-bottom: 16px;
+    }
+    .case h3 { font-size: 20px; font-weight: 700; margin-bottom: 10px; }
+    .case p { color: var(--text-2); font-size: 15px; line-height: 1.6; margin-bottom: 18px; }
+    .case .chat { font-family: var(--mono); font-size: 13px; border-top: 1px dashed var(--border); padding-top: 16px; display: flex; flex-direction: column; gap: 8px; }
+    .bubble-u { align-self: flex-end; background: var(--grad); color: #1a1408; padding: 7px 12px; border-radius: 12px 12px 3px 12px; max-width: 85%; font-weight: 600; }
+    .bubble-a { align-self: flex-start; background: rgba(255,255,255,0.05); border: 1px solid var(--border); color: var(--text-2); padding: 7px 12px; border-radius: 12px 12px 12px 3px; max-width: 90%; }
+    .bubble-a .tc { color: var(--ok); }
+
+    /* final cta */
+    .final { padding: 40px 0 110px; }
+    .final-band {
+      position: relative; border: 1px solid rgba(201,162,75,0.32); border-radius: 24px; padding: 64px 40px;
+      text-align: center; overflow: hidden;
+      background: radial-gradient(40rem 20rem at 50% -20%, rgba(201,162,75,0.2), transparent 60%), linear-gradient(180deg, #19150c 0%, #110e09 100%);
+    }
+    .final-band h2 { font-size: clamp(1.9rem, 3.4vw, 2.6rem); font-weight: 800; margin-bottom: 16px; }
+    .final-band p { color: var(--text-2); font-size: 17px; max-width: 30em; margin: 0 auto 30px; }
+    .final-cta { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+
+    footer { border-top: 1px solid var(--border-soft); padding: 56px 0 40px; background: var(--bg-2); }
+    .foot-grid { display: grid; grid-template-columns: 1.5fr 1fr 1fr 1fr; gap: 32px; margin-bottom: 40px; }
+    .foot-brand p { color: var(--text-2); font-size: 14px; margin-top: 14px; max-width: 26em; line-height: 1.6; }
+    .foot-col h4 { font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-3); margin: 0 0 16px; }
+    .foot-col a { display: block; color: var(--text-2); font-size: 14px; margin-bottom: 11px; transition: color 0.2s; }
+    .foot-col a:hover { color: var(--text); }
+    .foot-bottom { border-top: 1px solid var(--border-soft); padding-top: 24px; display: flex; align-items: center; justify-content: space-between; color: var(--text-3); font-size: 13px; flex-wrap: wrap; gap: 12px; }
+
+    .reveal { opacity: 0; transform: translateY(22px); transition: opacity 0.6s ease, transform 0.6s ease; }
+    .reveal.in { opacity: 1; transform: none; }
+
+    @media (max-width: 900px) {
+      .hero-grid { grid-template-columns: 1fr; gap: 40px; }
+      .how-grid { grid-template-columns: 1fr; }
+      .features { grid-template-columns: 1fr 1fr; }
+      .foot-grid { grid-template-columns: 1fr 1fr; }
+    }
+    @media (max-width: 640px) {
+      .nav-links { display: none; }
+      .features, .cases, .foot-grid { grid-template-columns: 1fr; }
+      section.block { padding: 72px 0; }
+      .final-band { padding: 48px 24px; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .cursor { animation: none; }
+      .reveal { transition: none; opacity: 1; transform: none; }
+      html { scroll-behavior: auto; }
+    }
+  </style>
+</head>
+<body>
+  <div class="bg-fx"></div>
+  <div class="bg-grid"></div>
+
+  <!-- CONSOLE_URL 目前指向本機 dev server；正式部署時改成實際 console 網域 -->
+
+  <header id="nav">
+    <div class="wrap nav">
+      <a class="brand" href="#top"><span class="mark">⌘</span>onagent</a>
+      <nav class="nav-links">
+        <a href="#features">功能</a>
+        <a href="#how">運作方式</a>
+        <a href="#cases">範例</a>
+        <a href="#" data-console>Console</a>
+      </nav>
+      <a class="btn btn-primary" href="#" data-console>開啟 Console →</a>
+    </div>
+  </header>
+
+  <main id="top">
+    <section class="hero">
+      <div class="wrap hero-grid">
+        <div class="reveal">
+          <span class="eyebrow"><span class="dot"></span>為開發者打造的 AI 介接平台</span>
+          <h1>幾分鐘，<br />讓你的網站<br /><span class="g">長出 AI 助手。</span></h1>
+          <p class="hero-sub">
+            定義幾個 tool，平台自動產生 LLM schema 與 TypeScript 型別；嵌入一段瀏覽器 SDK，AI
+            就能用自然語言直接操作你的頁面——填表單、跳頁、點按鈕。
+          </p>
+          <div class="hero-cta">
+            <a class="btn btn-primary btn-lg" href="#" data-console>開啟 Console</a>
+            <a class="btn btn-ghost btn-lg" href="#how">看 3 步驟範例 ↓</a>
+          </div>
+          <div class="hero-note">本機開發免金鑰 · <code>npm install</code> 接上 SDK · 型別安全的前端程式碼</div>
+        </div>
+
+        <div class="reveal">
+          <div class="term" aria-hidden="true">
+            <div class="term-bar">
+              <span class="term-dot" style="background:#ff5f57"></span>
+              <span class="term-dot" style="background:#febc2e"></span>
+              <span class="term-dot" style="background:#28c840"></span>
+              <span class="term-title">~/my-app — atp</span>
+            </div>
+            <div class="term-body" id="term"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="block" id="features">
+      <div class="wrap">
+        <div class="sec-head reveal">
+          <div class="sec-tag">Why onagent</div>
+          <h2>把 AI 接進介面，該有的都幫你準備好</h2>
+          <p>從 tool 定義到型別安全的前端程式碼與安全隔離，一次到位。</p>
+        </div>
+        <div class="features">
+          <div class="feature reveal">
+            <div class="ic"><svg viewBox="0 0 24 24"><path d="M4 8h10M8 4v4M4 16h10M8 12v4"/><circle cx="18" cy="8" r="2"/><circle cx="18" cy="16" r="2"/></svg></div>
+            <h3>一次定義，兩邊產出</h3>
+            <p>一份 tool 定義，自動生成 LLM 用的 JSON schema 與型別安全的 TypeScript <code>ToolHandlers</code> 介面——schema 與前端型別永不漂移。</p>
+          </div>
+          <div class="feature reveal">
+            <div class="ic"><svg viewBox="0 0 24 24"><path d="M5 3l14 8-6 2-2 6z"/></svg></div>
+            <h3>AI 直接操作你的介面</h3>
+            <p>tool call 會派發到你註冊的 handler：填表單、跳頁、勾選、點按鈕——不只是回一段文字，而是真的動起來。</p>
+          </div>
+          <div class="feature reveal">
+            <div class="ic"><svg viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 018 0v4"/></svg></div>
+            <h3>逐 App 隔離與白名單</h3>
+            <p>每把 API key 由伺服器端解析對應的 app（前端無法偽造），並綁定單一 Origin，未設定時預設 fail-closed 拒絕連線。</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="block how" id="how">
+      <div class="wrap">
+        <div class="sec-head reveal">
+          <div class="sec-tag">Ship in 3 steps</div>
+          <h2>三步驟，建立一個 AI 服務</h2>
+          <p>定義能力、推送到平台、嵌入前端——點左側步驟，看每一步實際的程式碼。</p>
+        </div>
+
+        <div class="how-grid reveal">
+          <div>
+            <div class="steps" id="steps">
+              <button class="step active" data-step="0">
+                <span class="step-num">01</span>
+                <span class="step-txt"><h3>定義一個 tool</h3><p>用一個設定檔描述名稱、說明與參數（JSON Schema）。這就是唯一的真相來源。</p></span>
+              </button>
+              <button class="step" data-step="1">
+                <span class="step-num">02</span>
+                <span class="step-txt"><h3>推送到平台</h3><p>用 <code style="font-family:var(--mono);color:var(--accent-2)">atp</code> CLI 登入並上傳；或直接在 console 編輯。</p></span>
+              </button>
+              <button class="step" data-step="2">
+                <span class="step-num">03</span>
+                <span class="step-txt"><h3>嵌入前端 SDK</h3><p>綁定你自己的 handler，推送頁面狀態，用一句話讓 AI 操作介面。</p></span>
+              </button>
+            </div>
+            <p class="how-note">↳ 完成後，AI 收到 prompt 時會挑選對應的 tool，SDK 幫你呼叫 handler、把結果回傳給模型。</p>
+          </div>
+
+          <div class="code-panel">
+            <div class="code-top">
+              <div class="code-file"><span class="fdot"></span><span id="fname">tools</span></div>
+              <button class="copy-btn" id="copy">複製</button>
+            </div>
+            <div class="code-body">
+              <div class="code-pane active" data-pane="0">
+<pre><span class="t-key">appId</span><span class="t-punc">:</span> <span class="t-str">demo-app</span>
+<span class="t-key">tools</span><span class="t-punc">:</span>
+  <span class="t-punc">-</span> <span class="t-key">name</span><span class="t-punc">:</span> <span class="t-str">fill_search_form</span>
+    <span class="t-key">description</span><span class="t-punc">:</span> <span class="t-str">填入頁面上的搜尋框並送出。</span>
+    <span class="t-key">parameters</span><span class="t-punc">:</span>
+      <span class="t-key">type</span><span class="t-punc">:</span> <span class="t-str">object</span>
+      <span class="t-key">required</span><span class="t-punc">:</span> <span class="t-punc">[</span><span class="t-str">query</span><span class="t-punc">]</span>
+      <span class="t-key">properties</span><span class="t-punc">:</span>
+        <span class="t-key">query</span><span class="t-punc">:</span>
+          <span class="t-key">type</span><span class="t-punc">:</span> <span class="t-str">string</span>
+          <span class="t-key">description</span><span class="t-punc">:</span> <span class="t-str">要搜尋的關鍵字。</span></pre>
+              </div>
+              <div class="code-pane" data-pane="1">
+<pre><span class="t-com"># 登入（會開瀏覽器授權，網址只帶一個一次性代碼）</span>
+<span class="t-prompt">$</span> atp login <span class="t-kw">--web</span>
+
+<span class="t-com"># 把 tool 定義推上去</span>
+<span class="t-prompt">$</span> atp save-tools demo-app tools
+<span class="t-ok">✓</span> Saved 1 tool to <span class="t-str">"demo-app"</span>
+
+<span class="t-com"># 隨時列出你的 app</span>
+<span class="t-prompt">$</span> atp list-apps
+demo-app        1 tool, has key</pre>
+              </div>
+              <div class="code-pane" data-pane="2">
+<pre><span class="t-kw">import</span> <span class="t-punc">{</span> AgentBridge <span class="t-punc">}</span> <span class="t-kw">from</span> <span class="t-str">"@onagent/agent-bridge-sdk"</span><span class="t-punc">;</span>
+
+<span class="t-kw">const</span> bridge <span class="t-punc">=</span> <span class="t-kw">new</span> <span class="t-fn">AgentBridge</span><span class="t-punc">({</span>
+  <span class="t-key">url</span><span class="t-punc">:</span> <span class="t-str">"wss://your-backend/ws"</span><span class="t-punc">,</span>
+  <span class="t-key">appId</span><span class="t-punc">:</span> <span class="t-str">"demo-app"</span><span class="t-punc">,</span>
+  <span class="t-key">apiKey</span><span class="t-punc">:</span> <span class="t-str">"YOUR_APP_API_KEY"</span><span class="t-punc">,</span>
+  <span class="t-key">tools</span><span class="t-punc">:</span> <span class="t-punc">{</span>
+    <span class="t-fn">fill_search_form</span><span class="t-punc">:</span> <span class="t-punc">({</span> query <span class="t-punc">})</span> <span class="t-kw">=&gt;</span> <span class="t-fn">setQuery</span><span class="t-punc">(</span>query<span class="t-punc">),</span>
+  <span class="t-punc">},</span>
+<span class="t-punc">});</span>
+
+bridge.<span class="t-fn">sendContext</span><span class="t-punc">({</span> query<span class="t-punc">,</span> path <span class="t-punc">});</span>  <span class="t-com">// 把頁面狀態當背景</span>
+bridge.<span class="t-fn">prompt</span><span class="t-punc">(</span><span class="t-str">"搜尋紅色運動鞋"</span><span class="t-punc">);</span>     <span class="t-com">// 讓 AI 動起來</span></pre>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="block" id="cases">
+      <div class="wrap">
+        <div class="sec-head reveal">
+          <div class="sec-tag">What you can build</div>
+          <h2>用一句話，驅動真實的介面操作</h2>
+          <p>這些不是示意圖——都是 repo 裡 <code style="font-family:var(--mono);color:var(--accent-2)">examples/</code> 底下能跑的範例。</p>
+        </div>
+        <div class="cases">
+          <div class="case reveal">
+            <span class="case-badge">examples/react-demo · React</span>
+            <h3>電商結帳助手</h3>
+            <p>讓 AI 幫使用者填搜尋、跳轉頁面、甚至按下結帳按鈕——每個動作都對應一個你註冊的 handler。</p>
+            <div class="chat">
+              <span class="bubble-u">幫我結帳</span>
+              <span class="bubble-a"><span class="tc">→ click_checkout_button()</span><br />已為你送出訂單 ✓</span>
+            </div>
+          </div>
+          <div class="case reveal">
+            <span class="case-badge">examples/analysis · Vue 3</span>
+            <h3>問卷分析助手</h3>
+            <p>在一份問卷題目清單上，用自然語言讓 AI 幫你勾選相關題目，準備跑統計分析。</p>
+            <div class="chat">
+              <span class="bubble-u">選擇跟年齡有關的題目</span>
+              <span class="bubble-a"><span class="tc">→ select_question(["p2q1", …])</span><br />已勾選 3 個題目</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="final">
+      <div class="wrap">
+        <div class="final-band reveal">
+          <h2>準備好讓 AI 進駐你的介面了嗎？</h2>
+          <p>建立 app、發一把 API key——就這樣。本機開發不需要任何 LLM 金鑰就能先跑起來。</p>
+          <div class="final-cta">
+            <a class="btn btn-primary btn-lg" href="#" data-console>開啟 Console</a>
+            <a class="btn btn-ghost btn-lg" href="#how">回顧 3 步驟</a>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <div class="wrap">
+      <div class="foot-grid">
+        <div class="foot-brand">
+          <a class="brand" href="#top"><span class="mark">⌘</span>onagent</a>
+          <p>把前端能力描述成 tool，讓 LLM 用自然語言安全地操作你的網頁。開發者導向、型別安全。</p>
+        </div>
+        <div class="foot-col"><h4>產品</h4><a href="#" data-console>Console</a><a href="#how">運作方式</a><a href="#features">功能特色</a></div>
+        <div class="foot-col"><h4>資源</h4><a href="#cases">範例應用</a><a href="#how">Agent Bridge SDK</a><a href="#how">atp CLI</a></div>
+        <div class="foot-col"><h4>開始</h4><a href="#" data-console>建立 App</a><a href="#" data-console>取得 API Key</a><a href="#how">嵌入 SDK</a></div>
+      </div>
+      <div class="foot-bottom">
+        <span>© 2026 onagent</span>
+        <span>Built for developers · LLM tool calling</span>
+      </div>
+    </div>
+  </footer>
+
+  <script>
+    var CONSOLE_URL = 'http://localhost:5173';
+    document.querySelectorAll('[data-console]').forEach(function (a) { a.setAttribute('href', CONSOLE_URL); });
+
+    var nav = document.getElementById('nav');
+    window.addEventListener('scroll', function () { nav.classList.toggle('scrolled', window.scrollY > 8); });
+
+    var io = new IntersectionObserver(function (entries) {
+      entries.forEach(function (e) {
+        if (e.isIntersecting) { e.target.classList.add('in'); io.unobserve(e.target); }
+      });
+    }, { threshold: 0.12 });
+    document.querySelectorAll('.reveal').forEach(function (el) { io.observe(el); });
+
+    var term = document.getElementById('term');
+    var lines = [
+      { t: 'comment', text: '# 1. 定義一個 tool，推上平台' },
+      { t: 'prompt', cmd: 'atp save-tools demo-app tools' },
+      { t: 'ok', text: '✓ Saved 1 tool to "demo-app"' },
+      { t: 'gap' },
+      { t: 'comment', text: '# 2. 前端嵌入 SDK' },
+      { t: 'prompt', cmd: 'npm i @onagent/agent-bridge-sdk' },
+      { t: 'gap' },
+      { t: 'comment', text: '# 3. 用一句話讓 AI 操作介面' },
+      { t: 'code', text: 'bridge.prompt("搜尋紅色運動鞋")' },
+      { t: 'out', text: '→ fill_search_form({ query: "紅色運動鞋" })' },
+      { t: 'ok', text: '✓ AI service is live' },
+    ];
+    var reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+    function esc(s) { return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+    function buildLine(ln, content) {
+      var div = document.createElement('div');
+      div.className = 'term-line';
+      if (ln.t === 'gap') { div.innerHTML = '&nbsp;'; return div; }
+      if (ln.t === 'prompt') div.innerHTML = '<span class="prompt">$</span> <span class="cmd">' + esc(content) + '</span>';
+      else if (ln.t === 'comment') div.innerHTML = '<span class="comment">' + esc(content) + '</span>';
+      else if (ln.t === 'ok') div.innerHTML = '<span class="ok">' + esc(content) + '</span>';
+      else if (ln.t === 'out') div.innerHTML = '<span class="out">' + esc(content) + '</span>';
+      else if (ln.t === 'code') div.innerHTML = '<span class="cmd">' + esc(content) + '</span>';
+      return div;
+    }
+
+    if (reduce) {
+      lines.forEach(function (ln) { term.appendChild(buildLine(ln, ln.cmd || ln.text || '')); });
+    } else {
+      (function typeLines() {
+        var i = 0;
+        var cursor = document.createElement('span');
+        cursor.className = 'cursor';
+        function nextLine() {
+          if (i >= lines.length) { if (cursor.parentNode) cursor.parentNode.removeChild(cursor); return; }
+          var ln = lines[i];
+          var content = ln.cmd || ln.text || '';
+          if (ln.t !== 'prompt') {
+            term.appendChild(buildLine(ln, content));
+            term.appendChild(cursor);
+            i++;
+            setTimeout(nextLine, ln.t === 'gap' ? 120 : 420);
+            return;
+          }
+          var div = document.createElement('div');
+          div.className = 'term-line';
+          div.innerHTML = '<span class="prompt">$</span> <span class="cmd"></span>';
+          term.appendChild(div);
+          var span = div.querySelector('.cmd');
+          div.appendChild(cursor);
+          var typed = 0;
+          (function typeChar() {
+            if (typed <= content.length) { span.textContent = content.slice(0, typed); typed++; setTimeout(typeChar, 26); }
+            else { i++; setTimeout(nextLine, 360); }
+          })();
+        }
+        nextLine();
+      })();
+    }
+
+    var steps = document.querySelectorAll('.step');
+    var panes = document.querySelectorAll('.code-pane');
+    var fname = document.getElementById('fname');
+    var fnames = ['tools', 'terminal', 'app.tsx'];
+    steps.forEach(function (s) {
+      s.addEventListener('click', function () {
+        var n = +s.dataset.step;
+        steps.forEach(function (x) { x.classList.toggle('active', x === s); });
+        panes.forEach(function (p) { p.classList.toggle('active', +p.dataset.pane === n); });
+        fname.textContent = fnames[n];
+      });
+    });
+
+    var copyBtn = document.getElementById('copy');
+    copyBtn.addEventListener('click', function () {
+      var active = document.querySelector('.code-pane.active pre');
+      if (!active) return;
+      navigator.clipboard.writeText(active.innerText).then(function () {
+        copyBtn.textContent = '已複製 ✓';
+        copyBtn.classList.add('copied');
+        setTimeout(function () { copyBtn.textContent = '複製'; copyBtn.classList.remove('copied'); }, 1600);
+      });
+    });
+  </script>
+</body>
+</html>

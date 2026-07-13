@@ -868,6 +868,11 @@ textarea {
   font-size: 15px;
 }
 
+.tool-description-input {
+  width: 100%;
+  min-height: 72px;
+}
+
 /* ---------------------------------------------------------------------- */
 /* Schema editor                                                            */
 /* ---------------------------------------------------------------------- */
@@ -968,7 +973,7 @@ textarea {
   flex: none;
 }
 
-.preview-tabs button {
+.tab-btn {
   border: none;
   background: transparent;
   color: var(--ink-dim);
@@ -979,11 +984,11 @@ textarea {
   margin-bottom: -1px;
 }
 
-.preview-tabs button:hover {
+.tab-btn:hover {
   color: var(--ink);
 }
 
-.preview-tabs button.active {
+.tab-btn.active {
   color: var(--accent);
   border-bottom-color: var(--accent);
   font-weight: 600;
@@ -991,16 +996,16 @@ textarea {
 
 .copy-btn {
   margin-left: auto;
-  border: 1px solid var(--border-strong) !important;
+  border: 1px solid var(--border-strong);
   border-radius: var(--radius-sm);
-  color: var(--ink-dim) !important;
-  padding: 4px 10px !important;
-  margin-bottom: 0 !important;
+  color: var(--ink-dim);
+  padding: 4px 10px;
+  margin-bottom: 0;
 }
 
 .copy-btn:hover {
   background: var(--border);
-  color: var(--ink) !important;
+  color: var(--ink);
 }
 
 .preview-hint {

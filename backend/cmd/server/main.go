@@ -1,4 +1,4 @@
-// Command server runs the agent-tool-platform backend: it loads developer
+// Command server runs the onagent backend: it loads developer
 // tool definitions, exposes codegen endpoints (LLM tool schema + generated
 // TypeScript), and serves the WebSocket endpoint the Agent Bridge SDK
 // connects to.
@@ -133,6 +133,15 @@ func main() {
 		_, _ = w.Write([]byte("ok"))
 	})
 	consoleHandler.Register(mux)
+
+	// Static frontend hosting (apps/landing at "/", apps/console at "/app"
+	// with SPA fallback) — registered last, after every API route above,
+	// purely for readability ("APIs first, static hosting is the
+	// fallback"); Go's http.ServeMux dispatches by pattern specificity, not
+	// registration order, so this ordering doesn't change behavior. See
+	// cmd/server/web.go for the embed.FS setup and why the embedded trees
+	// are placeholders in an ordinary local build.
+	mountStatic(mux, log)
 
 	addr := envOr("ADDR", ":8080")
 	log.Info("listening", "addr", addr)

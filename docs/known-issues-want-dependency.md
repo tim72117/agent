@@ -27,7 +27,7 @@ under consideration, is in the `want` repo:
 **Status:** confirmed by reading `want`'s source (2026-07-09), not yet fixed.
 No workaround from this repo's side — the registry is a package-level
 singleton in `want`, so there's no way to route around it from
-`agent-tool-platform`'s code.
+`onagent`'s code.
 
 ## Single shared orchestrator serializes every user's every turn
 

@@ -1,0 +1,40 @@
+steps:
+  # BuildKit secret mount instead of --build-arg: --build-arg bakes the
+  # value into the image's layer history (inspectable via `docker history`
+  # or by pulling the image), a secret mount only exists as a file during
+  # the one RUN step that reads it and is never written to any layer.
+  - name: gcr.io/cloud-builders/docker
+    entrypoint: bash
+    args:
+      - -c
+      - |
+        export DOCKER_BUILDKIT=1
+        docker build \
+          --secret id=gh_pat,env=GH_PAT \
+          -t asia-east1-docker.pkg.dev/$PROJECT_ID/cloud-run-source-deploy/onagent-server:$COMMIT_SHA \
+          .
+    secretEnv: [GH_PAT]
+
+  - name: gcr.io/cloud-builders/docker
+    args: [push, asia-east1-docker.pkg.dev/$PROJECT_ID/cloud-run-source-deploy/onagent-server:$COMMIT_SHA]
+
+  - name: gcr.io/google.com/cloudsdktool/cloud-sdk
+    entrypoint: gcloud
+    args:
+      - run
+      - deploy
+      - onagent-server
+      - --image=asia-east1-docker.pkg.dev/$PROJECT_ID/cloud-run-source-deploy/onagent-server:$COMMIT_SHA
+      - --region=asia-east1
+      - --update-env-vars=APP_ENV=production,COOKIE_SECURE=true
+      - --update-secrets=DATABASE_URL=DATABASE_URL:latest,ALLOWED_ORIGINS=ALLOWED_ORIGINS:latest
+      - --session-affinity
+      - --quiet
+
+availableSecrets:
+  secretManager:
+    - versionName: projects/$PROJECT_ID/secrets/GH_PAT/versions/latest
+      env: GH_PAT
+
+images:
+  - asia-east1-docker.pkg.dev/$PROJECT_ID/cloud-run-source-deploy/onagent-server:$COMMIT_SHA

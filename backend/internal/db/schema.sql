@@ -1,4 +1,4 @@
--- Schema for the agent-tool-platform backend's own state: registered apps,
+-- Schema for the onagent backend's own state: registered apps,
 -- their tool definitions, and API key hashes. Replaces the earlier
 -- filesystem-backed design (backend/tools/*.yaml + backend/apps/*.json) —
 -- see internal/toolschema and internal/auth, which now read/write through
