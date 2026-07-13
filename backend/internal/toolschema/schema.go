@@ -47,7 +47,7 @@ type App struct {
 	// selects its tools — tone, domain knowledge, or app-specific rules a
 	// developer wants the LLM to follow beyond "call the matching tool."
 	// Empty means the platform default applies (see
-	// internal/inference/want_tools.go's defaultThought). Not part of the
+	// internal/inference/agent_roles.go's defaultThought). Not part of the
 	// LLM tool schema itself (codegen.ToLLMTools doesn't touch it) — it
 	// only affects the want agent role's system prompt.
 	Thought string `yaml:"thought,omitempty" json:"thought,omitempty"`

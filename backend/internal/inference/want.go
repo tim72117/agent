@@ -6,12 +6,12 @@
 // real on the backend — Browser literally drives a headless Chrome instance.
 // Those must never run here: this platform's tools are meant to be executed
 // by the connected web page, not by the backend. WantService therefore runs
-// want under a per-app agent role (agentRoleFor in want_tools.go), whose
+// want under a per-app agent role (agentRoleFor in agent_roles.go), whose
 // tool whitelist contains only that app's own declared tools; the built-ins
 // are registered in want's global registry (we can't stop that) but are
 // simply never selectable by any of these roles. Selecting one of an app's
 // own tools doesn't execute it either — the tool's Call implementation
-// (forwardingTool, in want_tools.go) records the call and returns
+// (forwardingTool, in agent_roles.go) records the call and returns
 // immediately; WantService.Complete reads it back out of the shared sink
 // once the run reaches "idle".
 //
@@ -63,7 +63,7 @@ const completeTimeout = 90 * time.Second
 
 // WantService implements Service by delegating reasoning to a want
 // orchestrator instance. RegisterPlatformTools must be called once before
-// the first Complete call (see want_tools.go).
+// the first Complete call (see agent_roles.go).
 type WantService struct {
 	orch *orchestrator.Orchestrator
 	mu   sync.Mutex
@@ -108,7 +108,7 @@ func (s *WantService) Complete(ctx context.Context, req Request) (*Result, error
 
 	// Per-app agent selection: orch.Role picks which want agent definition
 	// (Tools whitelist + Thought) LoadToolUseContext resolves for this run
-	// — see want_tools.go's registerAppRole, which registered one such
+	// — see agent_roles.go's registerAppRole, which registered one such
 	// definition per app at startup. Without this, every app would share
 	// whatever role the orchestrator happened to be constructed with,
 	// meaning app A's LLM could see app B's tools (or B's custom Thought).
