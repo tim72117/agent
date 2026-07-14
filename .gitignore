@@ -9,6 +9,11 @@ dist/
 /backend/server
 /backend/*.exe
 
+# Compiled atp binaries bundled into the Skill for zero-setup use — built
+# locally per-platform (see SKILL.md), not meant to accumulate in git
+# history as opaque, non-delta-compressible blobs every time atp changes.
+/.claude/skills/onagent-cli-setup/bin/
+
 # Backend runtime artifacts — sessions/ holds end-user conversation
 # transcripts (want's per-connection history files) and must never be
 # committed; the rest are tool downloads and scratch output.
