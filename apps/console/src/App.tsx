@@ -386,7 +386,7 @@ export default function App() {
                 </div>
               </div>
               <form className="origin-row" onSubmit={saveOrigin}>
-                <span className="micro-label origin-label">Site origin</span>
+                <span className="micro-label origin-label">Allowed origin</span>
                 <input
                   className="origin-input"
                   placeholder="https://your-site.example.com"
