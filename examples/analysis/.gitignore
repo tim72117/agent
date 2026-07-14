@@ -1,3 +1,4 @@
 .env
+.env.*
 analysis-mock
 analysis-mock.exe
