@@ -87,11 +87,14 @@ export function SchemaEditor({
             </option>
           ))}
         </select>
-        <input
-          placeholder="description"
-          value={schema.description ?? ''}
-          onChange={(e) => onChange({ ...schema, description: e.target.value })}
-        />
+        <label className="inline-label">
+          Description
+          <input
+            placeholder="What this field is for"
+            value={schema.description ?? ''}
+            onChange={(e) => onChange({ ...schema, description: e.target.value })}
+          />
+        </label>
       </div>
 
       {schema.type === 'string' && (
