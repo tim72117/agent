@@ -119,6 +119,7 @@
 
     /* terminal */
     .term {
+      position: relative; z-index: 1;
       background: linear-gradient(180deg, #16130c 0%, #120f0a 100%);
       border: 1px solid var(--border); border-radius: 16px; box-shadow: var(--shadow-glow);
       overflow: hidden; font-family: var(--mono);
@@ -135,6 +136,76 @@
     .term .comment { color: var(--text-3); }
     .cursor { display: inline-block; width: 8px; height: 16px; transform: translateY(3px); background: var(--accent); animation: blink 1.05s steps(1) infinite; }
     @keyframes blink { 0%, 50% { opacity: 1; } 51%, 100% { opacity: 0; } }
+
+    /* card-stack: .mock-card rests at its final position (44px down from
+       .term's top, so .term's own top edge stays visible above it) the
+       whole time — it's hidden via scale+opacity, not position, and pops
+       into view like a macOS app window launching: slightly small and
+       transparent, growing to full size with a soft spring overshoot
+       (cubic-bezier below dips past 1 before settling) while fading in.
+       z-index still flips instantly under it so it's front-most once
+       visible. overflow:visible on the wrapper so the mock card's lower
+       edge (a bit past .term's own bottom edge) isn't clipped. */
+    .card-stack { position: relative; overflow: visible; }
+    .mock-card {
+      position: absolute; left: 0; right: 0; top: 44px; z-index: 0;
+      background: #fbfaf7; border: 1px solid #e6e1d3; border-radius: 16px;
+      box-shadow: 0 26px 50px -18px rgba(0, 0, 0, 0.55);
+      overflow: hidden; transform: scale(0.85); opacity: 0; transform-origin: 50% 15%;
+      transition: transform 0.45s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.3s ease;
+    }
+    .card-stack.showing-mock .mock-card { z-index: 2; transform: scale(1); opacity: 1; }
+    @media (prefers-reduced-motion: reduce) {
+      .mock-card { transition: none; }
+    }
+
+    /* Deliberately a light/day palette, distinct from the rest of this
+       (dark) page — this card represents a third-party site onagent is
+       driving, not onagent's own UI, so it reads as "someone else's page"
+       stacked on top rather than an extension of the dev-tool chrome
+       beneath it. */
+    .mock-bar {
+      display: flex; align-items: center; gap: 8px; padding: 13px 16px;
+      border-bottom: 1px solid #e6e1d3; background: #f3efe4;
+    }
+    .mock-bar-title { margin-left: 8px; font-size: 12px; color: #8c8468; font-family: var(--sans); }
+    .mock-page { display: flex; flex-direction: column; gap: 26px; padding: 20px; font-family: var(--sans); }
+    .mock-list { display: flex; flex-direction: column; gap: 8px; }
+    .mock-item {
+      display: flex; align-items: center; gap: 10px; font-size: 13.5px; color: #4a4536;
+      border: 1px solid #e6e1d3; border-radius: 9px; padding: 10px 12px; background: #ffffff;
+      transition: border-color 0.3s ease, background 0.3s ease, color 0.3s ease;
+    }
+    .mock-check {
+      flex: none; width: 16px; height: 16px; border-radius: 5px; border: 1.5px solid #cfc8b3;
+      position: relative; transition: border-color 0.3s ease, background 0.3s ease;
+    }
+    .mock-price { margin-left: auto; font-family: var(--mono); font-size: 12px; color: #8c8468; }
+    .mock-item.picked { border-color: rgba(160, 120, 30, 0.45); background: #fbf2dc; color: #2b2718; }
+    .mock-item.picked .mock-check { background: var(--grad); border-color: transparent; }
+    .mock-item.picked .mock-check::after {
+      content: ''; position: absolute; left: 4px; top: 1px; width: 4px; height: 8px;
+      border: solid #1a1408; border-width: 0 2px 2px 0; transform: rotate(45deg);
+    }
+    /* Deliberately styled unlike .mock-item (soft filled pill, no white
+       card/border, trailing send button) so this reads as a chat prompt —
+       what bridge.prompt(...) actually is — rather than a traditional
+       search box or a fourth item in the list above it. */
+    .mock-input {
+      display: flex; align-items: center; gap: 8px; font-family: var(--mono); font-size: 13px;
+      background: #f3efe4; border: 1px solid transparent; border-radius: 999px;
+      padding: 8px 8px 8px 16px; color: #2b2718; margin-top: auto;
+    }
+    .mock-send {
+      flex: none; margin-left: auto; width: 26px; height: 26px; border-radius: 50%;
+      background: var(--grad); display: grid; place-items: center;
+    }
+    .mock-send svg { width: 13px; height: 13px; stroke: #1a1408; }
+    .mock-caret { display: inline-block; width: 7px; height: 15px; background: var(--accent); animation: blink 1.05s steps(1) infinite; }
+    @media (prefers-reduced-motion: reduce) {
+      .mock-item, .mock-check { transition: none; }
+      .mock-caret { animation: none; }
+    }
 
     section.block { padding: 100px 0; }
     .sec-head { max-width: 640px; margin: 0 auto 56px; text-align: center; }
@@ -272,7 +343,7 @@
   <div class="bg-fx"></div>
   <div class="bg-grid"></div>
 
-  <!-- CONSOLE_URL currently points at the local dev server; update it to the real console domain for production. -->
+  <!-- CONSOLE_URL: see the script below — relative path /app, same-origin to the embedded console (backend/cmd/server/web.go) -->
 
   <header id="nav">
     <div class="wrap nav">
@@ -307,14 +378,35 @@
         </div>
 
         <div class="reveal">
-          <div class="term" aria-hidden="true">
-            <div class="term-bar">
-              <span class="term-dot" style="background:#ff5f57"></span>
-              <span class="term-dot" style="background:#febc2e"></span>
-              <span class="term-dot" style="background:#28c840"></span>
-              <span class="term-title">~/my-app — atp</span>
+          <div class="card-stack">
+            <div class="term" aria-hidden="true">
+              <div class="term-bar">
+                <span class="term-dot" style="background:#ff5f57"></span>
+                <span class="term-dot" style="background:#febc2e"></span>
+                <span class="term-dot" style="background:#28c840"></span>
+                <span class="term-title">~/my-app — atp</span>
+              </div>
+              <div class="term-body" id="term"></div>
             </div>
-            <div class="term-body" id="term"></div>
+            <div class="mock-card" id="mock-card" aria-hidden="true">
+              <div class="mock-bar">
+                <span class="term-dot" style="background:#ff5f57"></span>
+                <span class="term-dot" style="background:#febc2e"></span>
+                <span class="term-dot" style="background:#28c840"></span>
+                <span class="mock-bar-title">myshop.com</span>
+              </div>
+              <div class="mock-page">
+                <div class="mock-list">
+                  <label class="mock-item"><span class="mock-check"></span>White Sneakers<span class="mock-price">NT$1,200</span></label>
+                  <label class="mock-item" id="mock-item-target"><span class="mock-check"></span>Red Sneakers<span class="mock-price">NT$1,350</span></label>
+                  <label class="mock-item"><span class="mock-check"></span>Blue Sneakers<span class="mock-price">NT$1,180</span></label>
+                </div>
+                <div class="mock-input">
+                  <span id="mock-input-text"></span><span class="mock-caret"></span>
+                  <span class="mock-send"><svg viewBox="0 0 24 24" fill="none" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h13M13 6l6 6-6 6"/></svg></span>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -406,7 +498,7 @@
 demo-app        1 tool, has key</pre>
               </div>
               <div class="code-pane" data-pane="2">
-<pre><span class="t-kw">import</span> <span class="t-punc">{</span> AgentBridge <span class="t-punc">}</span> <span class="t-kw">from</span> <span class="t-str">"@onagent/agent-bridge-sdk"</span><span class="t-punc">;</span>
+<pre><span class="t-kw">import</span> <span class="t-punc">{</span> AgentBridge <span class="t-punc">}</span> <span class="t-kw">from</span> <span class="t-str">"@onagent/bridge"</span><span class="t-punc">;</span>
 
 <span class="t-kw">const</span> bridge <span class="t-punc">=</span> <span class="t-kw">new</span> <span class="t-fn">AgentBridge</span><span class="t-punc">({</span>
   <span class="t-key">url</span><span class="t-punc">:</span> <span class="t-str">"wss://your-backend/ws"</span><span class="t-punc">,</span>
@@ -489,7 +581,10 @@ bridge.<span class="t-fn">prompt</span><span class="t-punc">(</span><span class=
   </footer>
 
   <script>
-    var CONSOLE_URL = 'http://localhost:5173';
+    // Relative, not a hardcoded domain: console is embedded same-origin at
+    // /app on whatever host serves this page (backend/cmd/server/web.go),
+    // so this works correctly on any deployment without editing per-domain.
+    var CONSOLE_URL = '/app';
     document.querySelectorAll('[data-console]').forEach(function (a) { a.setAttribute('href', CONSOLE_URL); });
 
     var nav = document.getElementById('nav');
@@ -509,12 +604,10 @@ bridge.<span class="t-fn">prompt</span><span class="t-punc">(</span><span class=
       { t: 'ok', text: '✓ Saved 1 tool to "demo-app"' },
       { t: 'gap' },
       { t: 'comment', text: '# 2. Embed the SDK in your front end' },
-      { t: 'prompt', cmd: 'npm i @onagent/agent-bridge-sdk' },
+      { t: 'prompt', cmd: 'npm i @onagent/bridge' },
       { t: 'gap' },
       { t: 'comment', text: '# 3. Let AI drive the UI with one sentence' },
-      { t: 'code', text: 'bridge.prompt("search for red sneakers")' },
-      { t: 'out', text: '→ fill_search_form({ query: "red sneakers" })' },
-      { t: 'ok', text: '✓ AI service is live' },
+      { t: 'code', text: 'const bridge = new AgentBridge({ tools: { select_item } })' },
     ];
     var reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
@@ -531,15 +624,61 @@ bridge.<span class="t-fn">prompt</span><span class="t-punc">(</span><span class=
       return div;
     }
 
+    // After the terminal finishes setting up the bridge, a second card
+    // (myshop.com) pops into view on top of it, and the actual bridge.prompt
+    // call plays out visually there instead of as another line of terminal
+    // text — typed into a real chat input, ending with the AI picking the
+    // matching item: a visual result, so the "why does this need an LLM"
+    // answer is "it read three similar options and picked the one matching
+    // a free-text description," not "it echoed a string into a field."
+    var stage = document.querySelector('.card-stack');
+    var mockInputText = document.getElementById('mock-input-text');
+    var mockTarget = document.getElementById('mock-item-target');
+    var MOCK_INPUT_VALUE = 'select the red sneakers';
+
+    function showMockPicked() {
+      mockInputText.textContent = MOCK_INPUT_VALUE;
+      stage.classList.add('showing-mock');
+      mockTarget.classList.add('picked');
+    }
+
+    // Must match .mock-card's `transition: transform 0.45s ...` above (the
+    // longer of its two transitioned properties) — the card shouldn't start
+    // "typing" into itself until it has actually finished popping into view.
+    var SLIDE_DURATION_MS = 450;
+
+    function playMockTransition() {
+      setTimeout(function () {
+        stage.classList.add('showing-mock');
+        setTimeout(function () {
+          var typed = 0;
+          (function typeChar() {
+            if (typed <= MOCK_INPUT_VALUE.length) {
+              mockInputText.textContent = MOCK_INPUT_VALUE.slice(0, typed);
+              typed++;
+              setTimeout(typeChar, 40);
+            } else {
+              setTimeout(function () { mockTarget.classList.add('picked'); }, 450);
+            }
+          })();
+        }, SLIDE_DURATION_MS);
+      }, 500);
+    }
+
     if (reduce) {
       lines.forEach(function (ln) { term.appendChild(buildLine(ln, ln.cmd || ln.text || '')); });
+      showMockPicked();
     } else {
       (function typeLines() {
         var i = 0;
         var cursor = document.createElement('span');
         cursor.className = 'cursor';
         function nextLine() {
-          if (i >= lines.length) { if (cursor.parentNode) cursor.parentNode.removeChild(cursor); return; }
+          if (i >= lines.length) {
+            if (cursor.parentNode) cursor.parentNode.removeChild(cursor);
+            playMockTransition();
+            return;
+          }
           var ln = lines[i];
           var content = ln.cmd || ln.text || '';
           if (ln.t !== 'prompt') {
