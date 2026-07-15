@@ -28,13 +28,10 @@ WORKDIR /web
 COPY apps/console/package.json apps/console/package-lock.json ./
 RUN npm ci
 COPY apps/console/ ./
-# apps/console/vite.config.ts 的 outDir 預設是本機開發用的
-# ../../backend/cmd/server/web/console(讓本機 npm run build 直接寫進
-# go:embed 目標,見該檔案註解)——但這裡是隔離的 build stage,只複製了
-# apps/console/ 進來,沒有 backend/ 這個 sibling,那個相對路徑在這裡沒有
-# 意義。用 CLI flag 覆蓋回 dist,維持跟 landing-build stage 一致、讓下面
-# 的 COPY --from=console-build /web/dist/. 找得到來源。
-RUN npm run build -- --outDir dist
+# 跟 landing-build 對稱:輸出到預設的 /web/dist/,對應下面的
+# COPY --from=console-build /web/dist/.。(apps/console/vite.config.ts 已
+# 移除自訂 outDir,回歸 dist,不再需要在這裡用 CLI flag 覆蓋。)
+RUN npm run build
 
 # ---- 階段 3:編譯 Go ----
 FROM golang:1.26 AS build
