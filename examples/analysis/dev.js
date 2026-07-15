@@ -12,7 +12,7 @@ import { AgentBridge } from '@onagent/bridge'
 const AGENT_WS_URL = import.meta.env.VITE_AGENT_WS_URL ?? 'ws://localhost:18080/ws'
 const AGENT_API_KEY = import.meta.env.VITE_AGENT_API_KEY
 
-const router = createRouter({
+export const router = createRouter({
     history: createWebHistory(),
     routes: [
         { path: '/', redirect: '/analysis/1/menu' },
@@ -20,9 +20,9 @@ const router = createRouter({
     ],
 })
 
-const vuetify = createVuetify({ components, directives })
+export const vuetify = createVuetify({ components, directives })
 
-const App = {
+export const App = {
     setup() {
         const input = ref('')
         const messages = ref([])
@@ -34,7 +34,7 @@ const App = {
         function connect() {
             bridge = new AgentBridge({
                 url: AGENT_WS_URL,
-                appId: 'analysis-app',
+                appId: 'analysis',
                 apiKey: AGENT_API_KEY,
                 onAssistantMessage: (text) => {
                     messages.value.push({ role: 'assistant', text })
@@ -53,8 +53,8 @@ const App = {
                     // kind: query on the backend (see tools.yaml) — this
                     // return value is awaited and fed back into the LLM's
                     // reasoning, not fire-and-forget like select_question
-                    // above. Reads the same availableQuestions the page
-                    // pushed via setQuestions/sendContext, so the LLM can map
+                    // above. Reads the same questions.value the page
+                    // set via setQuestions, so the LLM can map
                     // a user's natural-language request to a question's name.
                     // limit is required (not just declared optional) because
                     // of a vLLM streaming quirk: a tool call whose arguments
@@ -83,10 +83,11 @@ const App = {
 
         provide('setQuestions', (qs) => {
             questions.value = qs
-            // Keep the backend's grounding context in sync with the real
-            // question checklist as soon as it loads, so any prompt (not
-            // just the first one) can be answered using real data.
-            bridge?.sendContext({ availableQuestions: qs.map(q => ({ name: q.name, title: q.title })) })
+            // No push-to-backend call here on purpose: list_questions (a
+            // query tool, see tools.yaml) lets the LLM pull this same data
+            // on demand instead, so it never gets spliced into the raw
+            // user prompt text — see the thought field's instructions to
+            // call list_questions before select_question.
         })
         provide('onSelectQuestion', (handler) => { selectQuestionHandler.value = handler })
 
@@ -119,14 +120,21 @@ const App = {
     `,
 }
 
-const app = createApp(App)
+// Real bootstrap only — skipped under Vitest (import.meta.env.MODE ===
+// "test" there by default), so tests can import App/router above and mount
+// them however the test needs without this module also mounting a second,
+// untestable instance into a real "#app" element as a side effect of the
+// import itself.
+if (import.meta.env.MODE !== 'test') {
+    const app = createApp(App)
 
-app.config.globalProperties.$moment = {
-    dateFormat(date) {
-        return moment(date).format('yyyy-MM-DD')
-    },
+    app.config.globalProperties.$moment = {
+        dateFormat(date) {
+            return moment(date).format('yyyy-MM-DD')
+        },
+    }
+
+    app.use(router)
+    app.use(vuetify)
+    app.mount('#app')
 }
-
-app.use(router)
-app.use(vuetify)
-app.mount('#app')

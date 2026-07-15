@@ -79,10 +79,10 @@
 </template>
 
 <script>
-import axios from 'axios'
 import { inject } from 'vue'
 import OptionDefinitionDialog from './OptionDefinitionDialog.vue'
 import CensusFooter from './CensusFooter.vue'
+import { questions } from '../data/questions.js'
 
 export default {
     components: { CensusFooter, OptionDefinitionDialog },
@@ -135,15 +135,9 @@ export default {
     },
     methods: {
         getColumns() {
-            this.loading = true
-            axios
-                .get('getAnalysisQuestions')
-                .then((response) => {
-                    this.columns = response.data.questions
-                    this.selected = response.data.questions.filter((question) => question.choosed)
-                    this.setQuestions?.(response.data.questions)
-                })
-                .finally(() => (this.loading = false))
+            this.columns = questions
+            this.selected = questions.filter((question) => question.choosed)
+            this.setQuestions?.(questions)
         },
         nextStep() {
             if (this.selected.length > 0) {

@@ -1,11 +1,10 @@
 #!/usr/bin/env bash
 # =============================================================================
-# analysis 範例：一次啟動四個相關本地服務
+# analysis 範例：一次啟動三個相關本地服務
 #
 #   1. onagent 平台後端       (backend/cmd/server)       :8080
 #   2. onagent console dev server (apps/console)          :5173
-#   3. analysis mock 後端     (examples/analysis/backend) :8081
-#   4. analysis 前端 dev server (examples/analysis/frontend) :5175
+#   3. analysis 前端 dev server (examples/analysis)          :5175
 #
 # 不處理資料庫 —— 假設 onagent 平台後端需要的 Postgres 已經另外在跑，這支
 # 腳本不會啟動/檢查它。
@@ -15,7 +14,7 @@
 # 啟動前會先檢查對應 port 有沒有已經被占用，占用就跳過該服務、不會重複啟動
 # 一個新的（重複啟動會像疊加多個 process 搶同一個 port，徒增混亂）。
 #
-# 前端可選要連本機 mock 環境還是正式環境（examples/analysis/frontend 的
+# 前端可選要連本機 mock 環境還是正式環境（examples/analysis 的
 # .env / .env.production，見 Vite 的 --mode）。用 Vite 自己的預設 mode 名稱
 # （development/production），不要自創名字 —— 曾經試過用 "local"，Vite 直接
 # 拒絕啟動："local" cannot be used as a mode name because it conflicts with
@@ -32,7 +31,8 @@
 set -uo pipefail  # 不用 -e：單一服務啟動失敗不該讓整支腳本中止，其餘服務仍要嘗試启动
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-LOG_DIR="/tmp"
+LOG_DIR="${REPO_ROOT}/examples/analysis/tmp"
+mkdir -p "${LOG_DIR}"
 
 MODE="development"
 while [[ $# -gt 0 ]]; do
@@ -56,12 +56,24 @@ case "${MODE}" in
     ;;
 esac
 
+# get_listening_pid prints the PID of whatever's listening (not just
+# connected — see the lsof flags below) on $1, or nothing if there isn't
+# one. lsof isn't available on Windows Git Bash, so this falls back to
+# parsing `netstat -ano` there; both paths only ever report a LISTEN-state
+# socket, not a stale/closed connection that merely references the port
+# (e.g. a dead client socket left behind by another process), which would
+# otherwise make callers wrongly treat the port as in-use.
+get_listening_pid() {
+  local port="$1"
+  if command -v lsof >/dev/null 2>&1; then
+    lsof -ti ":${port}" -sTCP:LISTEN 2>/dev/null | head -1
+  else
+    netstat -ano 2>/dev/null | grep -E ":${port}[[:space:]]" | grep -i LISTENING | awk '{print $NF}' | head -1
+  fi
+}
+
 is_port_in_use() {
-  # -sTCP:LISTEN, not plain -i — a stale/closed connection that merely
-  # references the port (e.g. a dead client socket left behind by another
-  # process) otherwise makes this wrongly report the port as in-use even
-  # when nothing is actually listening on it.
-  lsof -ti ":$1" -sTCP:LISTEN >/dev/null 2>&1
+  [[ -n "$(get_listening_pid "$1")" ]]
 }
 
 start_service() {
@@ -76,7 +88,7 @@ start_service() {
   ("$@" > "${logfile}" 2>&1 &)
   sleep 1
   local pid
-  pid="$(lsof -ti ":${port}" -sTCP:LISTEN 2>/dev/null | head -1)"
+  pid="$(get_listening_pid "${port}")"
   if [[ -n "${pid}" ]]; then
     echo "${pid}" > "${pidfile}"
     echo "[${name}] 已啟動 (PID ${pid})，port ${port}，log: ${logfile}"
@@ -92,8 +104,8 @@ echo
 
 # -----------------------------------------------------------------------------
 # 1. onagent 平台後端 (:8080) —— 只有 --mode development 才需要：production
-#    模式下前端改連 wss://agent.shuttle.tools/ws（見 examples/analysis/
-#    frontend/.env.production），本機這份後端完全用不到，啟動了也只是空跑
+#    模式下前端改連 wss://agent.shuttle.tools/ws（見
+#    examples/analysis/.env.production），本機這份後端完全用不到，啟動了也只是空跑
 #    （而且本機沒有它需要的 Postgres，啟動只會失敗），所以直接跳過。
 # -----------------------------------------------------------------------------
 if [[ "${MODE}" == "development" ]]; then
@@ -129,27 +141,15 @@ else
 fi
 
 # -----------------------------------------------------------------------------
-# 3. analysis mock 後端 (:8081) —— 問卷題目等 mock 資料的 API，前端 dev
-#    server 的 proxy 設定會把 /analysis/* 轉發到這裡。
-# -----------------------------------------------------------------------------
-(
-  cd "${REPO_ROOT}/examples/analysis/backend" && \
-  start_service "analysis-mock-backend" 8081 \
-    "${LOG_DIR}/analysis-dev-mock-backend.log" \
-    "${LOG_DIR}/analysis-dev-mock-backend.pid" \
-    go run .
-)
-
-# -----------------------------------------------------------------------------
-# 4. analysis 前端 (:5175) —— npm run dev 用的是 vite.dev.config.js（不是
+# 3. analysis 前端 (:5175) —— npm run dev 用的是 vite.dev.config.js（不是
 #    build 用、目前缺依賴的 vite.config.js，見 package.json 的 dev script）。
 #    --mode production 讓 Vite 改讀 .env.production（真正的 AgentBridge 連線
-#    目標），但問卷題目資料的 mock API proxy（見 vite.dev.config.js）不受
-#    --mode 影響、永遠指向本機 :8081，所以無論哪個 mode 都需要 analysis
-#    mock 後端在跑。
+#    目標）。問卷題目資料現在是 examples/analysis/data/questions.js 裡的靜態
+#    資料（原本 mock 後端回應的快照），不再需要任何後端 API，所以不管哪個
+#    mode 都不用額外啟動什麼來提供這份資料。
 # -----------------------------------------------------------------------------
 (
-  cd "${REPO_ROOT}/examples/analysis/frontend" && \
+  cd "${REPO_ROOT}/examples/analysis" && \
   start_service "analysis-frontend" 5175 \
     "${LOG_DIR}/analysis-dev-frontend.log" \
     "${LOG_DIR}/analysis-dev-frontend.pid" \
