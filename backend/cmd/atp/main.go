@@ -54,6 +54,8 @@ func main() {
 		err = runSetOrigin(args)
 	case "save-tools":
 		err = runSaveTools(args)
+	case "get-tools":
+		err = runGetTools(args)
 	default:
 		usage()
 		os.Exit(1)
@@ -75,6 +77,7 @@ func usage() {
   atp issue-key [-api <url>] <appId>
   atp set-origin [-api <url>] <appId> <origin>
   atp save-tools [-api <url>] <appId> <tools.yaml>
+  atp get-tools [-api <url>] <appId>
 
   -api and -console both default to https://agent.shuttle.tools (the
   deployed onagent service). -console (login --web only) is the origin
@@ -423,6 +426,36 @@ func runSaveTools(args []string) error {
 	return nil
 }
 
+// --- get-tools -----------------------------------------------------------
+
+func runGetTools(args []string) error {
+	base, rest := apiFlag(args)
+	if len(rest) != 1 {
+		return fmt.Errorf("usage: atp get-tools [-api <url>] <appId>")
+	}
+	appID := rest[0]
+
+	client, err := authenticatedClient(base)
+	if err != nil {
+		return err
+	}
+
+	app, err := client.getApp(appID)
+	if err != nil {
+		return fmt.Errorf("get tools: %w", err)
+	}
+
+	// Marshaled straight back out as toolschema.App's own yaml tags
+	// (appId + tools + thought) — the same shape save-tools reads, so this
+	// output can be piped into a file and round-tripped back in.
+	out, err := yaml.Marshal(app)
+	if err != nil {
+		return fmt.Errorf("encode yaml: %w", err)
+	}
+	fmt.Print(string(out))
+	return nil
+}
+
 // --- api client ------------------------------------------------------------
 
 type appSummary struct {
@@ -648,6 +681,24 @@ func (c *apiClient) saveTools(appID string, tools []toolschema.Tool) (appSummary
 	var out appSummary
 	if err := json.NewDecoder(res.Body).Decode(&out); err != nil {
 		return appSummary{}, fmt.Errorf("decode response: %w", err)
+	}
+	return out, nil
+}
+
+// getApp returns the full App definition (every tool with its complete
+// parameter and returns schema) — the same document runSaveTools sends,
+// read back. Mirrors internal/console's getApp handler, which the web
+// console's editor calls for the same purpose.
+func (c *apiClient) getApp(appID string) (toolschema.App, error) {
+	res, err := c.do(http.MethodGet, "/console/apps/"+pathEscape(appID), nil)
+	if err != nil {
+		return toolschema.App{}, err
+	}
+	defer res.Body.Close()
+
+	var out toolschema.App
+	if err := json.NewDecoder(res.Body).Decode(&out); err != nil {
+		return toolschema.App{}, fmt.Errorf("decode response: %w", err)
 	}
 	return out, nil
 }
