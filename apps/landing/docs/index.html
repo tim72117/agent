@@ -1,0 +1,925 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>onagent docs — integrate the platform</title>
+  <meta
+    name="description"
+    content="Get the atp CLI, create an app, define tools, and embed the browser SDK — the full onagent integration guide for third-party developers."
+  />
+  <style>
+    :root {
+      --bg: #0d0b07;
+      --bg-2: #100d08;
+      --panel: #1a160e;
+      --panel-2: #1f1a10;
+      --border: #342d1c;
+      --border-soft: #241f13;
+      --text: #f5f1e8;
+      --text-2: #a89b82;
+      --text-3: #71664f;
+      --accent: #c9a24b;
+      --accent-2: #e0c98a;
+      --accent-soft: rgba(201, 162, 75, 0.12);
+      --ok: #7fbf7f;
+      --warn: #e0a860;
+      --err: #e07f7f;
+      --grad: linear-gradient(135deg, #c9a24b 0%, #e0c98a 100%);
+      --grad-text: linear-gradient(120deg, #f0dfae 0%, #c9a24b 55%, #9c7a2e 100%);
+      --shadow: 0 20px 60px -20px rgba(0, 0, 0, 0.6);
+      --max: 1160px;
+      --sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'PingFang TC', 'Microsoft JhengHei', sans-serif;
+      --mono: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--sans);
+      font-size: 16px;
+      line-height: 1.6;
+      -webkit-font-smoothing: antialiased;
+    }
+    a { color: var(--accent-2); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    h1, h2, h3, h4 { margin: 0; letter-spacing: -0.01em; line-height: 1.25; color: var(--text); }
+    p { margin: 0; }
+    ul, ol { margin: 0; padding-left: 1.3em; }
+    li { margin: 0; }
+    ::selection { background: rgba(201, 162, 75, 0.32); }
+
+    .bg-fx {
+      position: fixed; inset: 0; z-index: -1; pointer-events: none;
+      background:
+        radial-gradient(60rem 40rem at 88% -10%, rgba(224, 201, 138, 0.06), transparent 60%),
+        radial-gradient(50rem 40rem at 4% 0%, rgba(201, 162, 75, 0.07), transparent 55%);
+    }
+
+    /* ---------- top bar ---------- */
+    header.topbar {
+      position: sticky; top: 0; z-index: 60;
+      display: flex; align-items: center; justify-content: space-between;
+      height: 60px; padding: 0 20px;
+      background: rgba(13, 11, 7, 0.9); backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border-soft);
+    }
+    .brand { display: flex; align-items: center; gap: 9px; font-weight: 700; font-size: 15px; color: var(--text); }
+    .mark {
+      display: grid; place-items: center; width: 26px; height: 26px; border-radius: 8px;
+      background: var(--grad); color: #1a1408; font-size: 14px; font-weight: 700;
+    }
+    .brand .sep { color: var(--text-3); font-weight: 400; margin: 0 2px; }
+    .brand .doctag { color: var(--text-2); font-weight: 600; font-size: 14px; }
+    .topbar-links { display: flex; align-items: center; gap: 18px; font-size: 13.5px; color: var(--text-2); }
+    .topbar-links a { color: var(--text-2); }
+    .topbar-links a:hover { color: var(--text); }
+    .menu-btn {
+      display: none; align-items: center; justify-content: center;
+      width: 36px; height: 36px; border-radius: 8px; border: 1px solid var(--border);
+      background: rgba(255,255,255,0.03); color: var(--text-2); cursor: pointer;
+    }
+
+    /* ---------- layout shell ---------- */
+    .shell { display: grid; grid-template-columns: 250px minmax(0, 1fr); max-width: var(--max); margin: 0 auto; }
+
+    /* ---------- sidebar ---------- */
+    nav.sidebar {
+      position: sticky; top: 60px; align-self: start;
+      height: calc(100vh - 60px); overflow-y: auto;
+      padding: 28px 18px 40px 20px;
+      border-right: 1px solid var(--border-soft);
+    }
+    .side-group { margin-bottom: 22px; }
+    .side-title {
+      font-size: 11.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em;
+      color: var(--text-3); padding: 0 10px; margin-bottom: 8px;
+    }
+    .side-group a {
+      display: block; color: var(--text-2); font-size: 13.5px; padding: 6px 10px; border-radius: 7px;
+      border-left: 2px solid transparent; margin-bottom: 1px; transition: color 0.15s, background 0.15s, border-color 0.15s;
+    }
+    .side-group a:hover { color: var(--text); background: rgba(255,255,255,0.03); text-decoration: none; }
+    .side-group a.active { color: var(--accent-2); background: var(--accent-soft); border-left-color: var(--accent); font-weight: 600; }
+    .side-group a.sub { padding-left: 22px; font-size: 12.5px; }
+
+    /* ---------- main content ---------- */
+    main.content { min-width: 0; padding: 0 32px 100px; }
+
+    .doc-hero { padding: 44px 0 30px; border-bottom: 1px solid var(--border-soft); margin-bottom: 44px; }
+    .doc-hero .eyebrow {
+      display: inline-flex; align-items: center; gap: 8px; font-size: 12.5px; font-weight: 600;
+      color: var(--accent-2); background: var(--accent-soft); border: 1px solid rgba(201,162,75,0.3);
+      padding: 5px 12px; border-radius: 999px; margin-bottom: 16px;
+    }
+    .doc-hero .eyebrow .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); }
+    .doc-hero h1 { font-size: clamp(1.9rem, 3.4vw, 2.5rem); font-weight: 800; margin-bottom: 14px; }
+    .doc-hero h1 .g { background: var(--grad-text); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; }
+    .doc-hero p.lead { color: var(--text-2); font-size: 16.5px; max-width: 42em; line-height: 1.65; }
+    .doc-hero .quicklinks { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 22px; }
+    .qbtn {
+      font-size: 13px; font-weight: 600; color: var(--text); background: rgba(255,255,255,0.03);
+      border: 1px solid var(--border); padding: 8px 13px; border-radius: 9px; transition: border-color 0.15s, background 0.15s;
+    }
+    .qbtn:hover { border-color: #4a4128; background: rgba(255,255,255,0.05); text-decoration: none; }
+
+    section.doc-section { padding-top: 8px; margin-bottom: 64px; scroll-margin-top: 76px; }
+    section.doc-section > .sec-kicker {
+      font-size: 12.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--accent);
+      margin-bottom: 8px;
+    }
+    section.doc-section > h2 { font-size: 1.55rem; font-weight: 800; margin-bottom: 10px; scroll-margin-top: 76px; }
+    section.doc-section > p.intro { color: var(--text-2); font-size: 15.5px; max-width: 58em; margin-bottom: 26px; line-height: 1.65; }
+
+    h3.sub-head { font-size: 1.08rem; font-weight: 700; margin: 34px 0 10px; scroll-margin-top: 76px; }
+    h3.sub-head:first-child { margin-top: 0; }
+    h4.micro-head { font-size: 0.92rem; font-weight: 700; color: var(--text); margin: 22px 0 8px; }
+    p.body-text { color: var(--text-2); font-size: 15px; line-height: 1.7; margin-bottom: 14px; max-width: 62em; }
+    p.body-text:last-child { margin-bottom: 0; }
+    p.body-text code, li code, td code { font-family: var(--mono); font-size: 0.87em; color: var(--accent-2); background: var(--accent-soft); padding: 1px 6px; border-radius: 5px; }
+    ul.doc-list, ol.doc-list { color: var(--text-2); font-size: 15px; line-height: 1.75; margin-bottom: 14px; max-width: 62em; }
+    ul.doc-list li, ol.doc-list li { margin-bottom: 5px; }
+    ul.doc-list strong, ol.doc-list strong { color: var(--text); }
+
+    /* ---------- callouts ---------- */
+    .callout {
+      display: flex; gap: 12px; border-radius: 12px; padding: 16px 18px; margin: 18px 0 22px;
+      border: 1px solid var(--border-soft); background: linear-gradient(180deg, var(--panel) 0%, var(--bg-2) 100%);
+      max-width: 62em;
+    }
+    .callout .ic { flex: none; width: 20px; height: 20px; margin-top: 1px; }
+    .callout .ic svg { width: 20px; height: 20px; stroke-width: 2; fill: none; stroke-linecap: round; stroke-linejoin: round; }
+    .callout .ct h4 { font-size: 13.5px; font-weight: 700; margin-bottom: 4px; }
+    .callout .ct p { font-size: 14px; color: var(--text-2); line-height: 1.6; }
+    .callout .ct p code { font-family: var(--mono); font-size: 0.9em; }
+    .callout.warn { border-color: rgba(224,168,96,0.35); }
+    .callout.warn .ic svg { stroke: var(--warn); }
+    .callout.warn .ct h4 { color: var(--warn); }
+    .callout.info { border-color: rgba(201,162,75,0.3); }
+    .callout.info .ic svg { stroke: var(--accent-2); }
+    .callout.info .ct h4 { color: var(--accent-2); }
+    .callout.tip { border-color: rgba(127,191,127,0.3); }
+    .callout.tip .ic svg { stroke: var(--ok); }
+    .callout.tip .ct h4 { color: var(--ok); }
+
+    /* ---------- code blocks ---------- */
+    .code-block {
+      background: linear-gradient(180deg, #16130c 0%, #120f0a 100%);
+      border: 1px solid var(--border); border-radius: 12px; overflow: hidden;
+      margin: 16px 0 22px; max-width: 62em; box-shadow: var(--shadow);
+    }
+    .code-block .cb-top {
+      display: flex; align-items: center; justify-content: space-between; padding: 10px 15px;
+      border-bottom: 1px solid var(--border-soft); background: rgba(255,255,255,0.02);
+    }
+    .code-block .cb-file { display: flex; align-items: center; gap: 8px; font-family: var(--mono); font-size: 12px; color: var(--text-2); }
+    .code-block .cb-file .fdot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); flex: none; }
+    .copy-btn {
+      font-family: var(--sans); font-size: 11.5px; font-weight: 600; color: var(--text-2);
+      background: rgba(255,255,255,0.04); border: 1px solid var(--border); padding: 4px 10px; border-radius: 7px;
+      cursor: pointer; transition: all 0.18s; flex: none;
+    }
+    .copy-btn:hover { color: var(--text); border-color: #4a4128; }
+    .copy-btn.copied { color: var(--ok); border-color: rgba(127,191,127,0.4); }
+    .code-block pre {
+      margin: 0; padding: 16px 18px; overflow-x: auto; font-family: var(--mono); font-size: 13px;
+      line-height: 1.7; white-space: pre; tab-size: 2; color: var(--text);
+    }
+    .t-key { color: #cbb98f; }
+    .t-str { color: #a8c98a; }
+    .t-com { color: var(--text-3); font-style: italic; }
+    .t-fn { color: var(--accent-2); }
+    .t-kw { color: #d9a463; }
+    .t-punc { color: var(--text-2); }
+    .t-prompt { color: var(--accent); }
+    .t-ok { color: var(--ok); }
+    .t-num { color: #9fc2d9; }
+
+    /* ---------- tables ---------- */
+    .table-wrap { overflow-x: auto; margin: 16px 0 22px; max-width: 62em; border: 1px solid var(--border-soft); border-radius: 12px; }
+    table.doc-table { width: 100%; border-collapse: collapse; font-size: 13.5px; min-width: 480px; }
+    table.doc-table th {
+      text-align: left; font-size: 11.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em;
+      color: var(--text-3); background: var(--panel-2); padding: 10px 14px; border-bottom: 1px solid var(--border-soft);
+      white-space: nowrap;
+    }
+    table.doc-table td {
+      padding: 11px 14px; border-bottom: 1px solid var(--border-soft); color: var(--text-2); vertical-align: top;
+    }
+    table.doc-table tr:last-child td { border-bottom: none; }
+    table.doc-table td:first-child, table.doc-table th:first-child { font-family: var(--mono); color: var(--text); white-space: nowrap; }
+    table.doc-table code { font-family: var(--mono); font-size: 0.92em; color: var(--accent-2); }
+
+    /* ---------- command reference cards ---------- */
+    .cmd-card {
+      border: 1px solid var(--border-soft); border-radius: 12px; padding: 16px 18px; margin-bottom: 12px;
+      background: linear-gradient(180deg, var(--panel) 0%, var(--bg-2) 100%); max-width: 62em;
+    }
+    .cmd-card .cmd-sig {
+      font-family: var(--mono); font-size: 13.5px; color: var(--accent-2); margin-bottom: 6px;
+      display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+    }
+    .cmd-card .cmd-sig .opt { color: var(--text-3); }
+    .cmd-card p { font-size: 14px; color: var(--text-2); line-height: 1.6; }
+
+    /* ---------- step badges ---------- */
+    .step-badge {
+      display: inline-grid; place-items: center; width: 26px; height: 26px; border-radius: 8px;
+      background: var(--grad); color: #1a1408; font-family: var(--mono); font-weight: 700; font-size: 12.5px;
+      margin-right: 10px; flex: none;
+    }
+    .step-title-row { display: flex; align-items: center; margin-bottom: 4px; }
+
+    /* ---------- kbd ---------- */
+    kbd {
+      font-family: var(--mono); font-size: 0.85em; background: rgba(255,255,255,0.06); border: 1px solid var(--border);
+      border-bottom-width: 2px; border-radius: 5px; padding: 1px 6px; color: var(--text);
+    }
+
+    /* ---------- footer nav (prev/next could go here later; kept simple) ---------- */
+    footer.doc-footer {
+      border-top: 1px solid var(--border-soft); padding: 30px 0 60px; margin-top: 40px;
+      color: var(--text-3); font-size: 13px; max-width: 62em;
+    }
+    footer.doc-footer a { color: var(--text-2); }
+
+    hr.divider { border: none; border-top: 1px solid var(--border-soft); margin: 40px 0; max-width: 62em; }
+
+    /* ---------- responsive ---------- */
+    @media (max-width: 980px) {
+      .shell { grid-template-columns: 1fr; }
+      .menu-btn { display: grid; }
+      nav.sidebar {
+        position: fixed; top: 60px; left: 0; right: 0; bottom: 0; z-index: 55;
+        background: var(--bg); height: auto; transform: translateY(-8px); opacity: 0; pointer-events: none;
+        transition: opacity 0.15s, transform 0.15s; border-right: none;
+      }
+      nav.sidebar.open { transform: translateY(0); opacity: 1; pointer-events: auto; }
+      .topbar-links { display: none; }
+      main.content { padding: 0 20px 80px; }
+    }
+    @media (max-width: 560px) {
+      .doc-hero .quicklinks { flex-direction: column; align-items: flex-start; }
+    }
+  </style>
+</head>
+<body>
+  <div class="bg-fx"></div>
+
+  <header class="topbar">
+    <a class="brand" href="../index.html"><span class="mark">⌘</span>onagent<span class="sep">/</span><span class="doctag">docs</span></a>
+    <div class="topbar-links">
+      <a href="../index.html">← Back to site</a>
+      <a href="/app">Open console</a>
+    </div>
+    <button class="menu-btn" id="menuBtn" aria-label="Toggle navigation" aria-expanded="false">
+      <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 6h18M3 12h18M3 18h18"/></svg>
+    </button>
+  </header>
+
+  <div class="shell">
+    <nav class="sidebar" id="sidebar">
+      <div class="side-group">
+        <div class="side-title">Get started</div>
+        <a href="#overview">Overview</a>
+      </div>
+      <div class="side-group">
+        <div class="side-title">1. CLI</div>
+        <a href="#cli-install">Install the atp CLI</a>
+        <a class="sub" href="#cli-login">Log in</a>
+        <a class="sub" href="#cli-reference">Command reference</a>
+      </div>
+      <div class="side-group">
+        <div class="side-title">2. Console</div>
+        <a href="#create-app">Create an app</a>
+        <a class="sub" href="#issue-key">Issue an API key</a>
+        <a class="sub" href="#set-origin">Set the allowed origin</a>
+      </div>
+      <div class="side-group">
+        <div class="side-title">3. Tools</div>
+        <a href="#define-tools">Define tools</a>
+        <a class="sub" href="#tools-yaml-schema">tools.yaml schema</a>
+        <a class="sub" href="#tool-kind">action vs. query</a>
+        <a class="sub" href="#push-tools">Push tools</a>
+      </div>
+      <div class="side-group">
+        <div class="side-title">4. Frontend SDK</div>
+        <a href="#embed-sdk">Embed the SDK</a>
+        <a class="sub" href="#bridge-options">AgentBridge options</a>
+        <a class="sub" href="#tool-handlers">Implement tool handlers</a>
+        <a class="sub" href="#prompting">Sending prompts</a>
+      </div>
+      <div class="side-group">
+        <div class="side-title">More</div>
+        <a href="#claude-code">Claude Code skill</a>
+        <a href="#troubleshooting">Troubleshooting</a>
+      </div>
+    </nav>
+
+    <main class="content">
+      <div class="doc-hero">
+        <span class="eyebrow"><span class="dot"></span>Integration guide</span>
+        <h1>Integrate <span class="g">onagent</span> into your app</h1>
+        <p class="lead">
+          onagent lets an LLM drive your actual web UI. You describe what your app can do as a set of
+          <strong style="color:var(--text)">tools</strong> — named actions with typed parameters — push that
+          definition to the platform, and embed a small browser SDK that dispatches incoming tool calls to
+          handlers you write. This page walks through the whole path: get the CLI, create an app, define
+          tools, and wire up the frontend.
+        </p>
+        <div class="quicklinks">
+          <a class="qbtn" href="#cli-install">1. Get the CLI</a>
+          <a class="qbtn" href="#create-app">2. Create an app</a>
+          <a class="qbtn" href="#define-tools">3. Define tools</a>
+          <a class="qbtn" href="#embed-sdk">4. Embed the SDK</a>
+        </div>
+      </div>
+
+      <!-- ============================================================ -->
+      <section class="doc-section" id="overview">
+        <div class="sec-kicker">Overview</div>
+        <h2>How the pieces fit together</h2>
+        <p class="intro">
+          Four things make up an integration, and they map directly onto the four sections of this page.
+        </p>
+        <ol class="doc-list">
+          <li><strong>The <code>atp</code> CLI</strong> — a command-line tool you use to authenticate and manage your apps from a terminal (or a script/CI job) instead of only through the browser console.</li>
+          <li><strong>An app in the console</strong> — a namespace (<code>appId</code>) that owns one API key, one allowed origin, one set of tools, and an optional custom system prompt.</li>
+          <li><strong>A tool definition</strong> — a YAML file (or the console's tool editor) describing each capability your page exposes: its name, a description the LLM uses to decide when to call it, and a JSON-Schema parameter shape.</li>
+          <li><strong>The browser SDK (<code>@onagent/bridge</code>)</strong> — embedded in your page, it opens a WebSocket to the backend, registers your tool handlers, and lets you call <code>bridge.prompt(text)</code> to have the LLM reason about a request and dispatch tool calls back into your page in response.</li>
+        </ol>
+        <p class="body-text">
+          At runtime: your page calls <code>bridge.prompt("...")</code>, the backend's inference service decides
+          which of your declared tools (if any) to call, the SDK receives that call over the WebSocket, runs the
+          matching handler you registered, and reports the outcome back to the backend.
+        </p>
+      </section>
+
+      <!-- ============================================================ -->
+      <section class="doc-section" id="cli-install">
+        <div class="sec-kicker">Step 1 — CLI</div>
+        <h2>Get the <code>atp</code> CLI and log in</h2>
+        <p class="intro">
+          <code>atp</code> is the command-line client for the console API. Everything it does can also be done
+          through the browser console — use whichever fits your workflow. It's the faster path once you're
+          scripting things (CI, bulk tool pushes, etc.).
+        </p>
+
+        <h3 class="sub-head">Install</h3>
+        <p class="body-text">
+          If you have a Go toolchain available, install straight from the module path:
+        </p>
+        <div class="code-block">
+          <div class="cb-top">
+            <div class="cb-file"><span class="fdot"></span>terminal</div>
+            <button class="copy-btn" data-copy>Copy</button>
+          </div>
+          <pre><span class="t-prompt">$</span> go install github.com/tim72117/agent/backend/cmd/atp@latest</pre>
+        </div>
+        <p class="body-text">
+          This drops an <code>atp</code> binary in your Go bin directory. No separate download or package registry —
+          the CLI lives in the same repository as the backend it talks to.
+        </p>
+
+        <div class="callout info">
+          <div class="ic"><svg viewBox="0 0 24 24"><path d="M12 16v-4M12 8h.01"/><circle cx="12" cy="12" r="9"/></svg></div>
+          <div class="ct">
+            <h4>Using Claude Code?</h4>
+            <p>
+              See <a href="#claude-code">the Claude Code skill note</a> further down — it bundles a prebuilt
+              <code>atp</code> binary and can drive this entire setup for you, no local install required.
+            </p>
+          </div>
+        </div>
+
+        <h3 class="sub-head" id="cli-login">Log in</h3>
+        <p class="body-text">
+          <code>atp</code> supports two sign-in flows. Both end with a bearer token cached locally (in your
+          per-user config directory), so every later command runs without asking again.
+        </p>
+
+        <div class="cmd-card">
+          <div class="cmd-sig">atp login --web <span class="opt">[-api &lt;url&gt;] [-console &lt;url&gt;]</span></div>
+          <p>
+            Opens a browser tab for you to approve the sign-in, then a local one-shot callback server on your
+            machine receives the token — the token itself never appears in the URL or the browser. This is the
+            recommended default for any interactive terminal, and the only flow that shares login state with the
+            browser console UI.
+          </p>
+        </div>
+        <div class="cmd-card">
+          <div class="cmd-sig">atp login <span class="opt">[-api &lt;url&gt;]</span></div>
+          <p>
+            Prompts for email and password directly in the terminal, no browser involved. Use this for headless
+            environments (SSH-only boxes, CI runners) where a browser isn't available.
+          </p>
+        </div>
+
+        <div class="code-block">
+          <div class="cb-top">
+            <div class="cb-file"><span class="fdot"></span>terminal</div>
+            <button class="copy-btn" data-copy>Copy</button>
+          </div>
+          <pre><span class="t-com"># recommended for interactive use</span>
+<span class="t-prompt">$</span> atp login --web
+
+<span class="t-com"># headless / no browser available</span>
+<span class="t-prompt">$</span> atp login</pre>
+        </div>
+
+        <p class="body-text">Confirm it worked with:</p>
+        <div class="code-block">
+          <div class="cb-top">
+            <div class="cb-file"><span class="fdot"></span>terminal</div>
+            <button class="copy-btn" data-copy>Copy</button>
+          </div>
+          <pre><span class="t-prompt">$</span> atp list-apps
+<span class="t-com"># a list of apps (even an empty one) means you're logged in.</span>
+<span class="t-com"># "not logged in" means atp login hasn't succeeded yet.</span></pre>
+        </div>
+
+        <div class="callout info">
+          <div class="ic"><svg viewBox="0 0 24 24"><path d="M12 16v-4M12 8h.01"/><circle cx="12" cy="12" r="9"/></svg></div>
+          <div class="ct">
+            <h4>Default server</h4>
+            <p>
+              Every <code>atp</code> command talks to <code>https://agent.shuttle.tools</code> by default (both
+              <code>-api</code> and, for <code>login --web</code>, <code>-console</code>). Point at a local dev
+              server with e.g. <code>-api http://localhost:8080 -console http://localhost:8080</code>. There's no
+              environment-variable override — <code>-api</code>/<code>-console</code> flags are the only way to
+              redirect it, on purpose.
+            </p>
+          </div>
+        </div>
+
+        <h3 class="sub-head" id="cli-reference">Full command reference</h3>
+        <p class="body-text">Every subcommand accepts an optional leading <code>-api &lt;url&gt;</code> flag; omitted below for brevity.</p>
+
+        <div class="table-wrap">
+          <table class="doc-table">
+            <thead>
+              <tr><th>Command</th><th>Arguments</th><th>What it does</th></tr>
+            </thead>
+            <tbody>
+              <tr><td>login</td><td>—</td><td>Sign in with email/password typed into the terminal.</td></tr>
+              <tr><td>login --web</td><td><code>[-console &lt;url&gt;]</code></td><td>Sign in via a browser tab; token is exchanged through a local callback server.</td></tr>
+              <tr><td>list-apps</td><td>—</td><td>List your apps, each with tool count and whether a key exists.</td></tr>
+              <tr><td>create-app</td><td><code>&lt;appId&gt;</code></td><td>Create a new app namespace.</td></tr>
+              <tr><td>issue-key</td><td><code>&lt;appId&gt;</code></td><td>Mint a new API key for the app, shown once. Revokes any previous key immediately.</td></tr>
+              <tr><td>set-origin</td><td><code>&lt;appId&gt; &lt;origin&gt;</code></td><td>Set the exact allowed browser origin for this app's WebSocket connections.</td></tr>
+              <tr><td>set-thought</td><td><code>&lt;appId&gt; &lt;thought&gt;</code></td><td>Set (or, with an empty string, clear) the app's custom system prompt.</td></tr>
+              <tr><td>save-tools</td><td><code>&lt;appId&gt; &lt;tools.yaml&gt;</code></td><td>Validate and upload the <code>tools</code> array from a local YAML file.</td></tr>
+              <tr><td>get-tools</td><td><code>&lt;appId&gt;</code></td><td>Print the app's current tool definitions as YAML, in the same shape <code>save-tools</code> reads.</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <p class="body-text">
+          <code>appId</code> values must match <code>^[a-zA-Z0-9][a-zA-Z0-9_-]*$</code> — start with a letter or
+          digit, then any mix of letters, digits, <code>-</code>, and <code>_</code>.
+        </p>
+      </section>
+
+      <!-- ============================================================ -->
+      <section class="doc-section" id="create-app">
+        <div class="sec-kicker">Step 2 — Console</div>
+        <h2>Create an app, issue a key, set the allowed origin</h2>
+        <p class="intro">
+          These three things can each be done from the CLI or from the console's web UI — pick whichever's
+          convenient; both act on the exact same underlying app record.
+        </p>
+
+        <div class="step-title-row"><span class="step-badge">1</span><h3 class="sub-head" style="margin:0">Create the app</h3></div>
+        <div class="code-block">
+          <div class="cb-top">
+            <div class="cb-file"><span class="fdot"></span>terminal</div>
+            <button class="copy-btn" data-copy>Copy</button>
+          </div>
+          <pre><span class="t-prompt">$</span> atp create-app my-app
+Created app <span class="t-str">"my-app"</span>.</pre>
+        </div>
+        <p class="body-text">Or in the console: sign in at <code>/app</code> and click <strong style="color:var(--text)">+ New app</strong>.</p>
+
+        <div class="step-title-row" id="issue-key"><span class="step-badge">2</span><h3 class="sub-head" style="margin:0">Issue an API key</h3></div>
+        <div class="code-block">
+          <div class="cb-top">
+            <div class="cb-file"><span class="fdot"></span>terminal</div>
+            <button class="copy-btn" data-copy>Copy</button>
+          </div>
+          <pre><span class="t-prompt">$</span> atp issue-key my-app
+API key for <span class="t-str">"my-app"</span> (shown once — copy it now, it can't be retrieved again):
+  <span class="t-str">sk_live_ab12cd34...</span>
+Issuing a new key later immediately revokes this one.</pre>
+        </div>
+        <div class="callout warn">
+          <div class="ic"><svg viewBox="0 0 24 24"><path d="M12 9v4M12 17h.01M10.29 3.86l-8.18 14.14A2 2 0 0 0 3.82 21h16.36a2 2 0 0 0 1.71-3l-8.18-14.14a2 2 0 0 0-3.42 0Z"/></svg></div>
+          <div class="ct">
+            <h4>The key is shown exactly once</h4>
+            <p>
+              The backend stores only a hash of the key, never the plaintext — so the moment it scrolls off your
+              terminal (or you close the console's key modal), it's gone for good. Re-issuing a key is the only
+              way to get a new one, and doing so <strong style="color:var(--text)">immediately invalidates the
+              previous key</strong>. Don't rotate a production app's key casually — every connection using the
+              old key drops the instant you do.
+            </p>
+          </div>
+        </div>
+
+        <div class="step-title-row" id="set-origin"><span class="step-badge">3</span><h3 class="sub-head" style="margin:0">Set the allowed origin</h3></div>
+        <div class="code-block">
+          <div class="cb-top">
+            <div class="cb-file"><span class="fdot"></span>terminal</div>
+            <button class="copy-btn" data-copy>Copy</button>
+          </div>
+          <pre><span class="t-prompt">$</span> atp set-origin my-app https://your-site.example.com
+Set <span class="t-str">"my-app"</span>'s allowed origin to <span class="t-str">"https://your-site.example.com"</span>.</pre>
+        </div>
+        <p class="body-text">
+          Use the exact origin your page is served from — scheme + host + port, <strong style="color:var(--text)">no
+          path, no trailing slash</strong> (e.g. <code>https://your-site.example.com</code>, not
+          <code>https://your-site.example.com/</code> or <code>.../app</code>). In the console UI, the same field is
+          labeled <strong style="color:var(--text)">Allowed origin</strong> on the app's page.
+        </p>
+
+        <div class="callout warn">
+          <div class="ic"><svg viewBox="0 0 24 24"><path d="M12 9v4M12 17h.01M10.29 3.86l-8.18 14.14A2 2 0 0 0 3.82 21h16.36a2 2 0 0 0 1.71-3l-8.18-14.14a2 2 0 0 0-3.42 0Z"/></svg></div>
+          <div class="ct">
+            <h4>Origin is fail-closed — this is the #1 support issue</h4>
+            <p>
+              An app with <strong style="color:var(--text)">no allowed origin configured rejects every WebSocket
+              connection outright</strong>, even with a completely correct API key. There is no "allow everything"
+              fallback and no dev-mode bypass once a key is in play — an unset origin means the app accepts
+              connections from nowhere. If you (or a user) report "the API key is right, but the WebSocket won't
+              connect" or a silent connection failure with no other error, <strong style="color:var(--text)">the
+              first thing to check is whether this app's allowed origin is set, and whether it matches the page's
+              actual origin exactly</strong> (including scheme and port).
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============================================================ -->
+      <section class="doc-section" id="define-tools">
+        <div class="sec-kicker">Step 3 — Tools</div>
+        <h2>Define tools and push them</h2>
+        <p class="intro">
+          A tool is one capability your page exposes to the LLM: a name it calls, a description that tells the
+          model when to use it, and a JSON-Schema-shaped set of parameters. You can define tools two ways —
+          hand-write a <code>tools.yaml</code> and push it with <code>atp save-tools</code>, or use the console's
+          built-in tool editor. Both write to the exact same underlying definition; use whichever fits how many
+          tools you have and whether you want them under version control.
+        </p>
+
+        <h3 class="sub-head" id="tools-yaml-schema">tools.yaml schema</h3>
+        <p class="body-text">Top-level fields:</p>
+        <div class="table-wrap">
+          <table class="doc-table">
+            <thead><tr><th>Field</th><th>Required</th><th>Notes</th></tr></thead>
+            <tbody>
+              <tr><td>appId</td><td>No</td><td>May be present but is ignored by <code>atp save-tools</code> — the <code>appId</code> given as a command-line argument always wins. This lets one <code>tools.yaml</code> be reused verbatim across multiple apps.</td></tr>
+              <tr><td>thought</td><td>No</td><td>The app's custom system prompt for the agent that selects tools (see <a href="#tool-kind">below</a>). Omit to use the platform default.</td></tr>
+              <tr><td>tools</td><td>Yes</td><td>Array of tool definitions — see below. This is the only part of the file <code>save-tools</code> actually sends.</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <p class="body-text">Each entry under <code>tools</code>:</p>
+        <div class="table-wrap">
+          <table class="doc-table">
+            <thead><tr><th>Field</th><th>Required</th><th>Notes</th></tr></thead>
+            <tbody>
+              <tr><td>name</td><td>Yes</td><td>Identifier the LLM uses to call this tool. Must match <code>^[a-zA-Z_][a-zA-Z0-9_]*$</code> and be unique within the app.</td></tr>
+              <tr><td>description</td><td>Yes</td><td>Tells the LLM when and why to call this tool. This is the primary signal the model uses to pick between tools — be specific.</td></tr>
+              <tr><td>parameters</td><td>Yes</td><td>A JSON-Schema object: <code>type: object</code>, a <code>properties</code> map (each with a <code>type</code> — <code>string</code>, <code>number</code>, <code>integer</code>, <code>boolean</code>, <code>array</code>, or <code>object</code> — and optional <code>description</code>), and an optional <code>required</code> list of property names. Array-typed properties use <code>items</code>; object-typed properties can nest another <code>properties</code>/<code>required</code>.</td></tr>
+              <tr><td>returns</td><td>No</td><td>Same shape as <code>parameters</code>, documenting what the frontend sends back. Not sent to the LLM as part of the tool schema — used for TypeScript codegen, and for <code>query</code>-kind tools, this is also the shape the LLM receives back as data (see below).</td></tr>
+              <tr><td>kind</td><td>No</td><td><code>action</code> (default) or <code>query</code> — see <a href="#tool-kind">action vs. query</a> below.</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="code-block">
+          <div class="cb-top">
+            <div class="cb-file"><span class="fdot"></span>tools.yaml</div>
+            <button class="copy-btn" data-copy>Copy</button>
+          </div>
+          <pre><span class="t-key">appId</span><span class="t-punc">:</span> <span class="t-str">my-app</span>   <span class="t-com"># optional — ignored by save-tools; the CLI arg wins</span>
+<span class="t-key">thought</span><span class="t-punc">:</span> <span class="t-str">""</span>    <span class="t-com"># optional — custom system prompt, or omit for the default</span>
+<span class="t-key">tools</span><span class="t-punc">:</span>
+  <span class="t-punc">-</span> <span class="t-key">name</span><span class="t-punc">:</span> <span class="t-str">search_products</span>
+    <span class="t-key">description</span><span class="t-punc">:</span> <span class="t-str">Search the product catalog by keyword.</span>
+    <span class="t-key">parameters</span><span class="t-punc">:</span>
+      <span class="t-key">type</span><span class="t-punc">:</span> <span class="t-str">object</span>
+      <span class="t-key">properties</span><span class="t-punc">:</span>
+        <span class="t-key">query</span><span class="t-punc">:</span>
+          <span class="t-key">type</span><span class="t-punc">:</span> <span class="t-str">string</span>
+          <span class="t-key">description</span><span class="t-punc">:</span> <span class="t-str">The search keywords.</span>
+        <span class="t-key">maxResults</span><span class="t-punc">:</span>
+          <span class="t-key">type</span><span class="t-punc">:</span> <span class="t-str">integer</span>
+      <span class="t-key">required</span><span class="t-punc">:</span>
+        <span class="t-punc">-</span> <span class="t-str">query</span>
+    <span class="t-key">returns</span><span class="t-punc">:</span>
+      <span class="t-key">type</span><span class="t-punc">:</span> <span class="t-str">array</span>
+      <span class="t-key">items</span><span class="t-punc">:</span>
+        <span class="t-key">type</span><span class="t-punc">:</span> <span class="t-str">object</span>
+        <span class="t-key">properties</span><span class="t-punc">:</span>
+          <span class="t-key">id</span><span class="t-punc">:</span> <span class="t-punc">{</span> <span class="t-key">type</span><span class="t-punc">:</span> <span class="t-str">string</span> <span class="t-punc">}</span>
+          <span class="t-key">name</span><span class="t-punc">:</span> <span class="t-punc">{</span> <span class="t-key">type</span><span class="t-punc">:</span> <span class="t-str">string</span> <span class="t-punc">}</span>
+    <span class="t-key">kind</span><span class="t-punc">:</span> <span class="t-str">query</span>   <span class="t-com"># the LLM needs the actual search results back</span>
+
+  <span class="t-punc">-</span> <span class="t-key">name</span><span class="t-punc">:</span> <span class="t-str">add_to_cart</span>
+    <span class="t-key">description</span><span class="t-punc">:</span> <span class="t-str">Add a product to the current user's shopping cart.</span>
+    <span class="t-key">parameters</span><span class="t-punc">:</span>
+      <span class="t-key">type</span><span class="t-punc">:</span> <span class="t-str">object</span>
+      <span class="t-key">properties</span><span class="t-punc">:</span>
+        <span class="t-key">productId</span><span class="t-punc">:</span>
+          <span class="t-key">type</span><span class="t-punc">:</span> <span class="t-str">string</span>
+          <span class="t-key">description</span><span class="t-punc">:</span> <span class="t-str">The product's unique ID.</span>
+        <span class="t-key">quantity</span><span class="t-punc">:</span>
+          <span class="t-key">type</span><span class="t-punc">:</span> <span class="t-str">integer</span>
+          <span class="t-key">description</span><span class="t-punc">:</span> <span class="t-str">How many units to add. Defaults to 1 if omitted.</span>
+      <span class="t-key">required</span><span class="t-punc">:</span>
+        <span class="t-punc">-</span> <span class="t-str">productId</span>
+    <span class="t-com"># kind omitted → defaults to "action"</span></pre>
+        </div>
+
+        <h3 class="sub-head" id="tool-kind">action vs. query — both block, they differ in what the LLM sees back</h3>
+        <p class="body-text">
+          The <code>kind</code> field picks between two call flows. As of the current backend, <strong style="color:var(--text)">both
+          are blocking</strong> — a tool call always holds up the in-flight request until your page responds. The
+          difference is what happens to that response, not whether the platform waits for it.
+        </p>
+        <div class="table-wrap">
+          <table class="doc-table">
+            <thead><tr><th>kind</th><th>Blocks?</th><th>What reaches the LLM</th></tr></thead>
+            <tbody>
+              <tr><td>action <span style="color:var(--text-3)">(default)</span></td><td>Yes</td><td>Only whether the call succeeded or failed — not any data your handler returned. Use this for side-effecting operations: submitting a form, navigating, clicking a button, adding to a cart.</td></tr>
+              <tr><td>query</td><td>Yes</td><td>The actual value your handler returns, fed back into the LLM's reasoning so it can act on real page state it has no other way to see (e.g. "what's currently selected," "what did the search return"). Use sparingly — see below.</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="callout warn">
+          <div class="ic"><svg viewBox="0 0 24 24"><path d="M12 9v4M12 17h.01M10.29 3.86l-8.18 14.14A2 2 0 0 0 3.82 21h16.36a2 2 0 0 0 1.71-3l-8.18-14.14a2 2 0 0 0-3.42 0Z"/></svg></div>
+          <div class="ct">
+            <h4>query tools hold a shared backend lock</h4>
+            <p>
+              A <code>query</code>-kind call blocks the backend's single shared orchestrator lock for as long as
+              your page takes to answer — a slow or unresponsive tab stalls every other user of every app on that
+              backend, not just your own request. Reserve <code>kind: query</code> for cases where the LLM
+              genuinely needs data only your page has; default to <code>action</code> (or omit <code>kind</code>
+              entirely) for anything that's just "do this and tell me if it worked."
+            </p>
+          </div>
+        </div>
+
+        <h3 class="sub-head" id="push-tools">Push tools</h3>
+        <p class="body-text">Save the YAML above as <code>tools.yaml</code> and push it:</p>
+        <div class="code-block">
+          <div class="cb-top">
+            <div class="cb-file"><span class="fdot"></span>terminal</div>
+            <button class="copy-btn" data-copy>Copy</button>
+          </div>
+          <pre><span class="t-prompt">$</span> atp save-tools my-app tools.yaml
+Saved 2 tools to <span class="t-str">"my-app"</span>.</pre>
+        </div>
+        <p class="body-text">
+          <code>atp</code> validates the file locally before sending anything. The most common validation failures:
+        </p>
+        <ul class="doc-list">
+          <li><strong>Invalid tool name</strong> — doesn't match <code>^[a-zA-Z_][a-zA-Z0-9_]*$</code> (no hyphens, no leading digit, no spaces).</li>
+          <li><strong>Missing <code>description</code></strong> on a tool.</li>
+          <li><strong>Missing <code>parameters.type</code></strong> — the <code>parameters</code> block (or its <code>type</code> field) was omitted entirely.</li>
+          <li><strong>Duplicate tool <code>name</code></strong> within the same app.</li>
+        </ul>
+        <p class="body-text">
+          To read back what's currently saved (e.g. to diff against your local file, or seed a new file from the
+          console editor's state):
+        </p>
+        <div class="code-block">
+          <div class="cb-top">
+            <div class="cb-file"><span class="fdot"></span>terminal</div>
+            <button class="copy-btn" data-copy>Copy</button>
+          </div>
+          <pre><span class="t-prompt">$</span> atp get-tools my-app <span class="t-com">> tools.yaml</span></pre>
+        </div>
+
+        <h4 class="micro-head">Setting a custom thought (system prompt)</h4>
+        <p class="body-text">
+          Beyond individual tool descriptions, an app can carry its own custom instructions for the agent that
+          selects tools — tone, domain rules, anything beyond "call the matching tool":
+        </p>
+        <div class="code-block">
+          <div class="cb-top">
+            <div class="cb-file"><span class="fdot"></span>terminal</div>
+            <button class="copy-btn" data-copy>Copy</button>
+          </div>
+          <pre><span class="t-prompt">$</span> atp set-thought my-app <span class="t-str">"Always confirm destructive actions before calling them."</span>
+Set <span class="t-str">"my-app"</span>'s thought.</pre>
+        </div>
+        <p class="body-text">Pass an empty string to clear it and fall back to the platform default; this can also be embedded as the top-level <code>thought</code> field in <code>tools.yaml</code>.</p>
+      </section>
+
+      <!-- ============================================================ -->
+      <section class="doc-section" id="embed-sdk">
+        <div class="sec-kicker">Step 4 — Frontend SDK</div>
+        <h2>Embed the SDK and implement tool handlers</h2>
+        <p class="intro">
+          <code>@onagent/bridge</code> is the browser-side client: it opens a WebSocket to your onagent backend,
+          registers the tool handlers you provide, and exposes <code>prompt(text)</code> to kick off a request. It
+          buffers calls made before the connection is ready and flushes them once it's open, so you never have to
+          check a "ready" flag yourself.
+        </p>
+
+        <h3 class="sub-head">Install</h3>
+        <div class="code-block">
+          <div class="cb-top">
+            <div class="cb-file"><span class="fdot"></span>terminal</div>
+            <button class="copy-btn" data-copy>Copy</button>
+          </div>
+          <pre><span class="t-prompt">$</span> npm install @onagent/bridge</pre>
+        </div>
+
+        <h3 class="sub-head" id="bridge-options">Construct the bridge</h3>
+        <div class="code-block">
+          <div class="cb-top">
+            <div class="cb-file"><span class="fdot"></span>app.ts</div>
+            <button class="copy-btn" data-copy>Copy</button>
+          </div>
+          <pre><span class="t-kw">import</span> <span class="t-punc">{</span> AgentBridge <span class="t-punc">}</span> <span class="t-kw">from</span> <span class="t-str">"@onagent/bridge"</span><span class="t-punc">;</span>
+
+<span class="t-kw">const</span> bridge <span class="t-punc">=</span> <span class="t-kw">new</span> <span class="t-fn">AgentBridge</span><span class="t-punc">({</span>
+  <span class="t-key">url</span><span class="t-punc">:</span> <span class="t-str">"wss://agent.shuttle.tools/ws"</span><span class="t-punc">,</span>
+  <span class="t-key">appId</span><span class="t-punc">:</span> <span class="t-str">"my-app"</span><span class="t-punc">,</span>
+  <span class="t-key">apiKey</span><span class="t-punc">:</span> <span class="t-str">"YOUR_APP_API_KEY"</span><span class="t-punc">,</span>
+  <span class="t-key">tools</span><span class="t-punc">:</span> <span class="t-punc">{</span>
+    <span class="t-fn">search_products</span><span class="t-punc">:</span> <span class="t-kw">async</span> <span class="t-punc">({</span> query<span class="t-punc">,</span> maxResults <span class="t-punc">})</span> <span class="t-kw">=&gt;</span> <span class="t-punc">{</span>
+      <span class="t-kw">const</span> results <span class="t-punc">=</span> <span class="t-kw">await</span> <span class="t-fn">searchCatalog</span><span class="t-punc">(</span>query<span class="t-punc">,</span> maxResults<span class="t-punc">);</span>
+      <span class="t-kw">return</span> results<span class="t-punc">;</span> <span class="t-com">// kind: query → this value is fed back to the LLM</span>
+    <span class="t-punc">},</span>
+    <span class="t-fn">add_to_cart</span><span class="t-punc">:</span> <span class="t-punc">({</span> productId<span class="t-punc">,</span> quantity <span class="t-punc">})</span> <span class="t-kw">=&gt;</span> <span class="t-punc">{</span>
+      <span class="t-fn">cartStore</span><span class="t-punc">.</span><span class="t-fn">add</span><span class="t-punc">(</span>productId<span class="t-punc">,</span> quantity <span class="t-punc">??</span> <span class="t-num">1</span><span class="t-punc">);</span>
+      <span class="t-com">// kind: action (default) → only success/failure reaches the LLM,</span>
+      <span class="t-com">// any returned value here is ignored by the model.</span>
+    <span class="t-punc">},</span>
+  <span class="t-punc">},</span>
+  <span class="t-key">onAssistantMessage</span><span class="t-punc">:</span> <span class="t-punc">(</span>text<span class="t-punc">)</span> <span class="t-kw">=&gt;</span> <span class="t-fn">showInChat</span><span class="t-punc">(</span>text<span class="t-punc">),</span>
+  <span class="t-key">onError</span><span class="t-punc">:</span> <span class="t-punc">(</span>err<span class="t-punc">)</span> <span class="t-kw">=&gt;</span> <span class="t-fn">console</span><span class="t-punc">.</span><span class="t-fn">error</span><span class="t-punc">(</span><span class="t-str">"onagent error"</span><span class="t-punc">,</span> err<span class="t-punc">),</span>
+<span class="t-punc">});</span></pre>
+        </div>
+
+        <p class="body-text">Constructor options:</p>
+        <div class="table-wrap">
+          <table class="doc-table">
+            <thead><tr><th>Option</th><th>Required</th><th>Notes</th></tr></thead>
+            <tbody>
+              <tr><td>url</td><td>Yes</td><td>WebSocket endpoint, e.g. <code>wss://agent.shuttle.tools/ws</code>. Always use <code>wss://</code>, never <code>ws://</code> — the API key rides in a URL query parameter on the handshake (browsers can't attach custom headers to a WebSocket upgrade), so an unencrypted connection puts it on the wire, and often in server access logs, in plaintext.</td></tr>
+              <tr><td>appId</td><td>Yes</td><td>The app whose tool set this session loads.</td></tr>
+              <tr><td>apiKey</td><td>No</td><td>The key from <code>atp issue-key</code>. When set, it always overrides <code>appId</code> for authorization (the backend resolves the real appId server-side from the key). Omit only when connecting to a backend explicitly configured to allow its dev/no-auth mode.</td></tr>
+              <tr><td>tools</td><td>Yes</td><td>Map of tool name → handler function. See <a href="#tool-handlers">below</a>.</td></tr>
+              <tr><td>onAssistantMessage</td><td>No</td><td><code>(text: string) =&gt; void</code> — called with natural-language messages meant for display to the user (e.g. render into a chat panel).</td></tr>
+              <tr><td>onError</td><td>No</td><td><code>(err) =&gt; void</code> — called on protocol/inference errors not tied to one specific call.</td></tr>
+              <tr><td>minBackoffMs / maxBackoffMs</td><td>No</td><td>Reconnect backoff bounds in ms. Default 500ms .. 10s.</td></tr>
+              <tr><td>beaconUrl</td><td>No</td><td>HTTP endpoint to best-effort <code>sendBeacon</code> any still-queued messages to when the page is hidden/unloaded, since the WebSocket closes before an in-flight send can complete. Omit to skip this fallback.</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h3 class="sub-head" id="tool-handlers">Implement tool handlers</h3>
+        <p class="body-text">
+          Each key in <code>tools</code> must match a tool name your app has pushed to the platform (via
+          <code>save-tools</code> or the console editor). A handler receives the call's parsed arguments and
+          returns (or resolves to) whatever value is appropriate for that tool's <code>kind</code>:
+        </p>
+        <ul class="doc-list">
+          <li>For an <code>action</code> tool, the return value is ignored by the LLM — only whether your handler threw determines success/failure. Still return something meaningful if you want it visible via <code>get-tools</code>/codegen tooling, but don't rely on the model seeing it.</li>
+          <li>For a <code>query</code> tool, whatever you return (sync or via a resolved Promise) is serialized and fed straight back into the LLM's reasoning — shape it to match the tool's <code>returns</code> schema.</li>
+          <li>Throwing (or an async handler's Promise rejecting) reports failure back to the backend with the error's message.</li>
+        </ul>
+        <div class="callout tip">
+          <div class="ic"><svg viewBox="0 0 24 24"><path d="m9 12 2 2 4-4M12 3l8 4v5c0 5-3.5 8-8 9-4.5-1-8-4-8-9V7l8-4Z"/></svg></div>
+          <div class="ct">
+            <h4>Only handlers you register can ever run</h4>
+            <p>
+              The SDK refuses to invoke anything not present in the <code>tools</code> map you pass — there's no
+              eval or dynamic dispatch path. If the backend declares a tool your page hasn't registered a handler
+              for, the SDK logs a console warning (<code>backend declares tools with no registered handler:
+              ...</code>) rather than silently failing at call time, so mismatches surface early.
+            </p>
+          </div>
+        </div>
+
+        <h3 class="sub-head" id="prompting">Send a prompt</h3>
+        <p class="body-text">
+          Once constructed, call <code>bridge.prompt(text)</code> with a natural-language request. That's the
+          entire call — it takes just the text, nothing else:
+        </p>
+        <div class="code-block">
+          <div class="cb-top">
+            <div class="cb-file"><span class="fdot"></span>app.ts</div>
+            <button class="copy-btn" data-copy>Copy</button>
+          </div>
+          <pre><span class="t-fn">searchInput</span><span class="t-punc">.</span><span class="t-fn">addEventListener</span><span class="t-punc">(</span><span class="t-str">"submit"</span><span class="t-punc">, (</span>e<span class="t-punc">)</span> <span class="t-kw">=&gt;</span> <span class="t-punc">{</span>
+  e<span class="t-punc">.</span><span class="t-fn">preventDefault</span><span class="t-punc">();</span>
+  bridge<span class="t-punc">.</span><span class="t-fn">prompt</span><span class="t-punc">(</span>userInput<span class="t-punc">.</span>value<span class="t-punc">);</span>
+<span class="t-punc">});</span></pre>
+        </div>
+        <p class="body-text">
+          The LLM reasons about the prompt, picks zero or more of your declared tools, and the SDK dispatches each
+          call to the matching handler automatically. Results and any natural-language reply surface through
+          <code>onAssistantMessage</code>/<code>onError</code> and your handlers' own side effects — there's no
+          separate "context" parameter to pass alongside the prompt text; any state the model needs to reason
+          about should come back to it through a <code>query</code>-kind tool call instead.
+        </p>
+        <p class="body-text">Call <code>bridge.close()</code> to tear the connection down permanently — no further reconnect attempts will be made after that.</p>
+      </section>
+
+      <!-- ============================================================ -->
+      <section class="doc-section" id="claude-code">
+        <div class="sec-kicker">Alternative path</div>
+        <h2>Using Claude Code? There's a zero-setup skill</h2>
+        <p class="intro">
+          If you're integrating onagent from inside Claude Code, the <code>onagent-cli-setup</code> skill
+          (<code>.claude/skills/onagent-cli-setup/</code>) can walk through this entire flow for you — install
+          detection, login, app creation, key issuance, origin setup, and pushing a <code>tools.yaml</code> — using
+          a bundled prebuilt <code>atp</code> binary, so there's nothing to install manually first. It's a
+          complementary path to everything above, not a replacement: the underlying CLI commands and
+          <code>tools.yaml</code> schema are identical either way, so it's worth reading this page regardless of
+          whether Claude Code drives the mechanics for you.
+        </p>
+      </section>
+
+      <!-- ============================================================ -->
+      <section class="doc-section" id="troubleshooting">
+        <div class="sec-kicker">Reference</div>
+        <h2>Troubleshooting</h2>
+        <p class="intro">Quick answers to the issues that come up most.</p>
+
+        <div class="table-wrap">
+          <table class="doc-table">
+            <thead><tr><th>Symptom</th><th>Likely cause</th></tr></thead>
+            <tbody>
+              <tr><td>WebSocket won't connect, API key looks correct</td><td>The app's allowed origin is unset or doesn't exactly match the page's origin. See <a href="#set-origin">Origin is fail-closed</a> above — this is the most common cause by far.</td></tr>
+              <tr><td><code>atp</code> says "not logged in"</td><td>Run <code>atp login --web</code> (or <code>atp login</code>) again; the cached token may be missing or expired.</td></tr>
+              <tr><td><code>save-tools</code> fails validation</td><td>Check, in order: tool name regex, missing <code>description</code>, missing <code>parameters.type</code>, duplicate tool names. See <a href="#push-tools">Push tools</a> above.</td></tr>
+              <tr><td>Console warning: "backend declares tools with no registered handler"</td><td>A tool exists on the platform (pushed via <code>save-tools</code> or the console editor) that your <code>tools</code> map doesn't have a matching handler key for. Add the missing handler or remove the unused tool definition.</td></tr>
+              <tr><td>Issued a new key and everything broke</td><td>Expected — issuing a key immediately revokes the previous one. Update every deployed copy of the old key to the new one.</td></tr>
+              <tr><td>A tool call seems to hang</td><td>Likely a <code>kind: query</code> tool whose handler never resolves. Query tools block a shared backend lock while waiting — make sure the handler always resolves or rejects, and reserve <code>query</code> for cases that truly need data back.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <footer class="doc-footer">
+        <p>onagent — developer docs. See the <a href="../index.html">product overview</a> or open the <a href="/app">console</a>.</p>
+      </footer>
+    </main>
+  </div>
+
+  <script>
+    // Sidebar active-link highlighting on scroll.
+    var sections = Array.prototype.slice.call(document.querySelectorAll('section.doc-section[id]'));
+    var links = Array.prototype.slice.call(document.querySelectorAll('nav.sidebar a[href^="#"]'));
+    function linkFor(id) { return links.find(function (a) { return a.getAttribute('href') === '#' + id; }); }
+    var io = new IntersectionObserver(function (entries) {
+      entries.forEach(function (entry) {
+        var link = linkFor(entry.target.id);
+        if (!link) return;
+        if (entry.isIntersecting) {
+          links.forEach(function (a) { a.classList.remove('active'); });
+          link.classList.add('active');
+        }
+      });
+    }, { rootMargin: '-15% 0px -70% 0px', threshold: 0 });
+    sections.forEach(function (s) { io.observe(s); });
+
+    // Mobile nav toggle.
+    var menuBtn = document.getElementById('menuBtn');
+    var sidebar = document.getElementById('sidebar');
+    menuBtn.addEventListener('click', function () {
+      var open = sidebar.classList.toggle('open');
+      menuBtn.setAttribute('aria-expanded', String(open));
+    });
+    links.forEach(function (a) {
+      a.addEventListener('click', function () {
+        sidebar.classList.remove('open');
+        menuBtn.setAttribute('aria-expanded', 'false');
+      });
+    });
+
+    // Copy-to-clipboard for every code block.
+    document.querySelectorAll('[data-copy]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var pre = btn.closest('.code-block').querySelector('pre');
+        if (!pre) return;
+        navigator.clipboard.writeText(pre.innerText).then(function () {
+          var original = btn.textContent;
+          btn.textContent = 'Copied ✓';
+          btn.classList.add('copied');
+          setTimeout(function () { btn.textContent = original; btn.classList.remove('copied'); }, 1600);
+        });
+      });
+    });
+  </script>
+</body>
+</html>
