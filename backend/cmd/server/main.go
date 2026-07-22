@@ -10,6 +10,7 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
+	"runtime/debug"
 	"strings"
 
 	"github.com/joho/godotenv"
@@ -28,7 +29,56 @@ import (
 	"github.com/tim72117/onagent/internal/ws"
 )
 
+const usage = `Usage: server [-h|--help]
+
+Runs the onagent backend: loads developer tool definitions, exposes codegen
+endpoints (LLM tool schema + generated TypeScript), and serves the WebSocket
+endpoint the Agent Bridge SDK connects to.
+
+Configured entirely via environment variables (optionally loaded from a
+.env file in the working directory):
+
+  ADDR                    Listen address (default ":8080")
+  DATABASE_URL            Postgres DSN
+                          (default "postgres://platform:platform@localhost:5434/platform?sslmode=disable")
+  APP_ENV                 Set to "production" to turn insecure-default
+                          warnings (missing ALLOWED_ORIGINS/CONSOLE_ORIGIN,
+                          COOKIE_SECURE=false) into startup failures.
+  ALLOWED_ORIGINS         Comma-separated developer app origins allowed to
+                          open /ws and hit credentialed /console, /auth
+                          endpoints. Required when APP_ENV=production;
+                          unset accepts any origin (dev mode only).
+  COOKIE_SECURE           "true" to send session cookies with Secure
+                          (required when APP_ENV=production). Default
+                          "false" (plain HTTP, dev only).
+  CONSOLE_ORIGIN          Comma-separated origins for the developer console
+                          frontend (Playground WebSocket + CORS). Required
+                          when APP_ENV=production; defaults to
+                          "http://localhost:5173" outside production.
+  ADMIN_ORIGIN            Comma-separated origins for the admin SPA CORS.
+                          Default "http://localhost:5174".
+  ADMIN_BOOTSTRAP_EMAIL   Email for the first admin account, created once
+                          on startup if no admin exists yet.
+  ADMIN_BOOTSTRAP_PASSWORD
+                          Password for the bootstrapped admin account.
+  SETTINGS_FILE           Path to the AI provider settings JSON
+                          (default "configs/settings.json").
+  AI_PROVIDER             Overrides the provider from SETTINGS_FILE.
+  AI_MODEL                Overrides the model from SETTINGS_FILE.
+  OLLAMA_URL              Ollama base URL (default "http://localhost:11434").
+  VLLM_BASE_URL           vLLM base URL.
+  GOOGLE_API_KEY          Overrides the Google API key from SETTINGS_FILE.
+  WANT_WORKSPACE          Workspace path for the want registry (default "").
+`
+
 func main() {
+	for _, arg := range os.Args[1:] {
+		if arg == "-h" || arg == "--help" {
+			os.Stdout.WriteString(usage)
+			return
+		}
+	}
+
 	log := slog.New(slog.NewTextHandler(os.Stdout, nil))
 
 	// Best-effort: a missing .env is normal in production, where real
@@ -217,10 +267,30 @@ func main() {
 
 	addr := envOr("ADDR", ":8080")
 	log.Info("listening", "addr", addr)
-	if err := http.ListenAndServe(addr, withCORS(mux, credentialedOrigins)); err != nil {
+	if err := http.ListenAndServe(addr, recoverMiddleware(withCORS(mux, credentialedOrigins), log)); err != nil {
 		log.Error("server exited", "err", err)
 		os.Exit(1)
 	}
+}
+
+// recoverMiddleware turns a panic in any handler into a 500 response instead
+// of taking down the whole process — without it, one request hitting an
+// unanticipated nil/index/type-assertion edge case kills every other user's
+// in-flight connection too, since nothing else in this codebase calls
+// recover(). Only covers the request goroutine http.Server itself spawns per
+// connection; handlers that spin off their own long-lived goroutine (e.g.
+// ws.Session's read loop, playground's prompt loop) need their own recover
+// at the top of that goroutine — this can't reach into those.
+func recoverMiddleware(next http.Handler, log *slog.Logger) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		defer func() {
+			if rec := recover(); rec != nil {
+				log.Error("panic recovered", "err", rec, "path", r.URL.Path, "stack", string(debug.Stack()))
+				http.Error(w, "internal server error", http.StatusInternalServerError)
+			}
+		}()
+		next.ServeHTTP(w, r)
+	})
 }
 
 func handleToolSchema(apps *toolschema.Registry) http.HandlerFunc {

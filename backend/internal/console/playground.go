@@ -3,7 +3,9 @@ package console
 import (
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"net/http"
+	"runtime/debug"
 	"sync"
 	"time"
 
@@ -146,6 +148,15 @@ func (h *Handler) playgroundWS(w http.ResponseWriter, r *http.Request, user *ses
 
 	pingDone := make(chan struct{})
 	go func() {
+		// An unrecovered panic on any goroutine kills the whole process,
+		// taking every other user's session down with it — a plain http
+		// middleware's recover() can't reach a goroutine spawned like this
+		// one, so it needs its own.
+		defer func() {
+			if r := recover(); r != nil {
+				slog.Error("panic recovered in playground ping loop", "err", r, "stack", string(debug.Stack()))
+			}
+		}()
 		ticker := time.NewTicker(playgroundPingInterval)
 		defer ticker.Stop()
 		for {

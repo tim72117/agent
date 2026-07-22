@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
+	"runtime/debug"
 	"sync"
 	"time"
 
@@ -110,6 +111,15 @@ func (s *Session) startPingLoop() func() {
 	ticker := time.NewTicker(pingInterval)
 	done := make(chan struct{})
 	go func() {
+		// An unrecovered panic on any goroutine kills the whole process,
+		// taking every other session down with it — a plain http
+		// middleware's recover() can't reach a goroutine spawned like this
+		// one, so it needs its own.
+		defer func() {
+			if r := recover(); r != nil {
+				s.log.Error("panic recovered in ping loop", "session", s.id, "err", r, "stack", string(debug.Stack()))
+			}
+		}()
 		for {
 			select {
 			case <-ticker.C:
@@ -197,6 +207,19 @@ func (s *Session) handleHello(env protocol.Envelope) {
 }
 
 func (s *Session) handlePrompt(ctx context.Context, env protocol.Envelope) {
+	// This always runs on its own goroutine (see the `go s.handlePrompt(...)`
+	// call site in handle) — a plain http middleware's recover() can't reach
+	// in here, and an unrecovered panic on any goroutine kills the whole
+	// process, taking down every other session with it. Deferred at the top
+	// of the function rather than at the call site so any future caller gets
+	// the same protection automatically.
+	defer func() {
+		if r := recover(); r != nil {
+			s.log.Error("panic recovered in handlePrompt", "session", s.id, "err", r, "stack", string(debug.Stack()))
+			s.sendError(env.RequestID, "internal server error")
+		}
+	}()
+
 	var p protocol.PromptPayload
 	if err := json.Unmarshal(env.Payload, &p); err != nil {
 		s.sendError(env.RequestID, "invalid prompt payload")
