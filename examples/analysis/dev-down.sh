@@ -80,6 +80,6 @@ stop_service() {
   fi
 }
 
-stop_service "onagent-backend" "${LOG_DIR}/analysis-dev-onagent-backend.pid" 8080
+stop_service "onagent-backend" "${LOG_DIR}/analysis-dev-onagent-backend.pid" 8081
 stop_service "onagent-console" "${LOG_DIR}/analysis-dev-console.pid" 5173
 stop_service "analysis-frontend" "${LOG_DIR}/analysis-dev-frontend.pid" 5175

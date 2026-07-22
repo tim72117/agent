@@ -2,7 +2,7 @@
 # =============================================================================
 # analysis 範例：一次啟動三個相關本地服務
 #
-#   1. onagent 平台後端       (backend/cmd/server)       :8080
+#   1. onagent 平台後端       (backend/cmd/server)       :8081
 #   2. onagent console dev server (apps/console)          :5173
 #   3. analysis 前端 dev server (examples/analysis)          :5175
 #
@@ -103,15 +103,19 @@ echo "=============================================="
 echo
 
 # -----------------------------------------------------------------------------
-# 1. onagent 平台後端 (:8080) —— 只有 --mode development 才需要：production
+# 1. onagent 平台後端 (:8081) —— 只有 --mode development 才需要：production
 #    模式下前端改連 wss://onagent.shuttle.tools/ws（見
 #    examples/analysis/.env.production），本機這份後端完全用不到，啟動了也只是空跑
 #    （而且本機沒有它需要的 Postgres，啟動只會失敗），所以直接跳過。
+#    ADDR=:8081 明確覆寫監聽位址 —— 後端沒設 ADDR 時預設聽 :8080（見
+#    backend/cmd/server/main.go 的 envOr("ADDR", ":8080")），這裡改連 8081
+#    是刻意跟預設值錯開（例如本機 8080 另有他用），必須連同這個環境變數一起改，
+#    否則後端還是會照舊聽 8080，跟下面 start_service 檢查的 port 對不起來。
 # -----------------------------------------------------------------------------
 if [[ "${MODE}" == "development" ]]; then
   (
     cd "${REPO_ROOT}/backend" && \
-    start_service "onagent-backend" 8080 \
+    ADDR=":8081" start_service "onagent-backend" 8081 \
       "${LOG_DIR}/analysis-dev-onagent-backend.log" \
       "${LOG_DIR}/analysis-dev-onagent-backend.pid" \
       go run ./cmd/server
