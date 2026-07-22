@@ -140,6 +140,67 @@ func TestPlanFor(t *testing.T) {
 	}
 }
 
+// TestStandingForPeriodEnd exercises nextPeriodBoundary, the periodEnd
+// derivation StandingFor uses, without needing a database —
+// periodStart/periodEnd here are pure functions of (startedAt, now).
+func TestStandingForPeriodEnd(t *testing.T) {
+	cases := []struct {
+		name      string
+		started   string
+		now       string
+		wantStart string
+		wantEnd   string
+	}{
+		{
+			name:      "mid-month anchor",
+			started:   "2026-01-15T00:00:00Z",
+			now:       "2026-03-20T09:00:00Z",
+			wantStart: "2026-03-15T00:00:00Z",
+			wantEnd:   "2026-04-15T00:00:00Z",
+		},
+		{
+			name:      "31st anchor rolls current period into a 28-day February",
+			started:   "2026-01-31T00:00:00Z",
+			now:       "2026-02-15T00:00:00Z",
+			wantStart: "2026-01-31T00:00:00Z",
+			wantEnd:   "2026-02-28T00:00:00Z",
+		},
+		{
+			name:      "31st anchor, period already in clamped February, end is March 31",
+			started:   "2026-01-31T00:00:00Z",
+			now:       "2026-02-28T12:00:00Z",
+			wantStart: "2026-02-28T00:00:00Z",
+			wantEnd:   "2026-03-31T00:00:00Z",
+		},
+		{
+			name:      "1st-of-month anchor",
+			started:   "2026-01-01T00:00:00Z",
+			now:       "2026-05-17T23:00:00Z",
+			wantStart: "2026-05-01T00:00:00Z",
+			wantEnd:   "2026-06-01T00:00:00Z",
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			started := mustParse(t, tc.started)
+			now := mustParse(t, tc.now)
+			periodStart := currentPeriodStart(started, now)
+			periodEnd := nextPeriodBoundary(started, periodStart)
+
+			if want := mustParse(t, tc.wantStart); !periodStart.Equal(want) {
+				t.Errorf("periodStart = %s, want %s", periodStart.Format(time.RFC3339), want.Format(time.RFC3339))
+			}
+			if want := mustParse(t, tc.wantEnd); !periodEnd.Equal(want) {
+				t.Errorf("periodEnd = %s, want %s", periodEnd.Format(time.RFC3339), want.Format(time.RFC3339))
+			}
+			if !periodEnd.After(periodStart) {
+				t.Errorf("periodEnd %s must be after periodStart %s", periodEnd, periodStart)
+			}
+		})
+	}
+}
+
 func TestOwnerStandingLimit(t *testing.T) {
 	planFree := PlanFor(TierFree).MonthlyPrompts
 

@@ -33,6 +33,19 @@ export interface CurrentUser {
   email: string
 }
 
+// Mirrors backend/internal/console.quotaResponse, itself named to match the
+// admin back-office's per-user shape (quota.UserSummary) — tier/limit/used
+// mean the same thing on both surfaces, just scoped to "me" here instead of
+// an admin-chosen userId.
+export interface Quota {
+  tier: string
+  planName: string
+  limit: number
+  used: number
+  periodStart: string // RFC 3339
+  periodEnd: string // RFC 3339
+}
+
 // Exported so Playground.tsx can derive the playground WebSocket's URL
 // from the same source of truth rather than duplicating the env var lookup
 // (that's also why this falls back to window.location.origin rather than
@@ -89,6 +102,8 @@ export const api = {
   logout: (): Promise<void> => request('POST', '/auth/logout').then(() => undefined),
 
   me: (): Promise<CurrentUser> => request('GET', '/auth/me').then((r) => r.json()),
+
+  getQuota: (): Promise<Quota> => request('GET', '/console/quota').then((r) => r.json()),
 
   listApps: (): Promise<AppSummary[]> => request('GET', '/console/apps').then((r) => r.json()),
 

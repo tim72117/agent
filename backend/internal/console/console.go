@@ -23,6 +23,7 @@ import (
 	"errors"
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/tim72117/onagent/internal/auth"
 	"github.com/tim72117/onagent/internal/cliauth"
@@ -78,6 +79,8 @@ func (h *Handler) Register(mux *http.ServeMux) {
 	mux.HandleFunc("POST /auth/login", h.login)
 	mux.HandleFunc("POST /auth/logout", h.logout)
 	mux.HandleFunc("GET /auth/me", h.withAuth(h.me))
+
+	mux.HandleFunc("GET /console/quota", h.withAuth(h.getQuota))
 
 	mux.HandleFunc("GET /console/apps", h.withAuth(h.listApps))
 	mux.HandleFunc("POST /console/apps", h.withAuth(h.createApp))
@@ -231,6 +234,46 @@ func (h *Handler) logout(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handler) me(w http.ResponseWriter, r *http.Request, user *session.User) {
 	writeJSON(w, http.StatusOK, authResponse{Email: user.Email})
+}
+
+// --- quota -----------------------------------------------------------------
+
+// quotaResponse is the caller's own plan + usage-this-period standing.
+// Field names mirror quota.UserSummary (the admin back-office's per-user
+// shape returned by GET /admin/api/users) — tier/limit/used name the same
+// facts there and here, so the two surfaces don't invent different
+// vocabulary for the same numbers. periodStart/periodEnd are RFC 3339
+// (encoding/json's default time.Time marshaling) since nothing else in this
+// package needs a different format for a timestamp.
+type quotaResponse struct {
+	Tier        string    `json:"tier"`
+	PlanName    string    `json:"planName"`
+	Limit       int       `json:"limit"`
+	Used        int       `json:"used"`
+	PeriodStart time.Time `json:"periodStart"`
+	PeriodEnd   time.Time `json:"periodEnd"`
+}
+
+// getQuota reports the calling developer's own plan and current-period
+// usage. Scoped to the account (user), not to a single app: quota is billed
+// per owner across every app they have, matching how quota.Check/Record
+// already enforce it — see quota.Service.StandingFor's doc comment. No app
+// ownership check applies here (unlike the /console/apps/{appId}/* routes)
+// since there is no {appId} in this path at all.
+func (h *Handler) getQuota(w http.ResponseWriter, r *http.Request, user *session.User) {
+	st, err := h.Quota.StandingFor(r.Context(), user.ID)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	writeJSON(w, http.StatusOK, quotaResponse{
+		Tier:        string(st.Tier),
+		PlanName:    st.PlanName,
+		Limit:       st.Limit,
+		Used:        st.Used,
+		PeriodStart: st.PeriodStart,
+		PeriodEnd:   st.PeriodEnd,
+	})
 }
 
 // --- apps ------------------------------------------------------------------

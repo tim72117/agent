@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import type { App as AppSchema, Tool } from './schema'
 import { DEFAULT_THOUGHT, emptyTool } from './schema'
 import { api, ApiError } from './api'
-import type { AppSummary, CurrentUser, IssuedKey } from './api'
+import type { AppSummary, CurrentUser, IssuedKey, Quota } from './api'
 import { Login } from './Login'
 import { KeyModal } from './KeyModal'
 import { AddAppModal } from './AddAppModal'
@@ -24,6 +24,11 @@ export default function App() {
   const [user, setUser] = useState<CurrentUser | null>(null)
   const [loginError, setLoginError] = useState<string | null>(null)
   const [summaries, setSummaries] = useState<AppSummary[] | null>(null)
+  // Account-level plan/usage standing, shown in the sidebar. Best-effort:
+  // fetched once alongside the app list, but its own failure never blocks
+  // the rest of the console (see the catch below) since it's purely
+  // informational.
+  const [quota, setQuota] = useState<Quota | null>(null)
 
   // draft is the full definition of the app being edited; edits stay local
   // until Save PUTs them to the backend, so half-finished schema changes
@@ -50,6 +55,7 @@ export default function App() {
     setUser(null)
     setAuthState('anonymous')
     setSummaries(null)
+    setQuota(null)
     setDraft(null)
     setDirty(false)
     setActiveToolIndex(null)
@@ -102,6 +108,16 @@ export default function App() {
       }
     })
   }, [authState, refreshSummaries, logout, reportError])
+
+  // Quota is informational-only sidebar chrome, not something the rest of
+  // the console depends on to function — so unlike refreshSummaries, a
+  // failure here (including a 401) is swallowed rather than routed through
+  // reportError/logout. A real session expiry still gets caught by the
+  // next app-list or save call, which do funnel through logout.
+  useEffect(() => {
+    if (authState !== 'authenticated') return
+    api.getQuota().then(setQuota).catch(() => setQuota(null))
+  }, [authState])
 
   // Unsaved edits only live in this tab; warn before the browser discards them.
   useEffect(() => {
@@ -366,6 +382,7 @@ export default function App() {
     <div className="shell">
       <Sidebar
         userEmail={user.email}
+        quota={quota}
         summaries={summaries}
         activeAppId={draft?.appId ?? null}
         onSelectApp={selectApp}

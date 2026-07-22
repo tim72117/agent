@@ -1,9 +1,10 @@
 import type { Tool } from './schema'
-import type { AppSummary } from './api'
+import type { AppSummary, Quota } from './api'
 import type { ValidationIssue } from './validate'
 
 export function Sidebar({
   userEmail,
+  quota,
   summaries,
   activeAppId,
   onSelectApp,
@@ -21,6 +22,7 @@ export function Sidebar({
   onLogout,
 }: {
   userEmail: string
+  quota: Quota | null // null while loading, or if the fetch failed — rendered as nothing rather than a placeholder
   summaries: AppSummary[]
   activeAppId: string | null
   onSelectApp: (appId: string) => void
@@ -145,6 +147,14 @@ export function Sidebar({
             Delete "{activeAppId}"
           </button>
         )}
+        {quota && (
+          <div className="sidebar-quota" title={`Resets ${new Date(quota.periodEnd).toLocaleDateString()}`}>
+            <span className="sidebar-quota-plan">{quota.planName} plan</span>
+            <span className="sidebar-quota-usage">
+              {quota.used} / {quota.limit} requests used this month
+            </span>
+          </div>
+        )}
         <div className="sidebar-account">
           <span className="sidebar-account-email">{userEmail}</span>
           <button type="button" className="sidebar-text-btn" onClick={onLogout}>
@@ -152,8 +162,7 @@ export function Sidebar({
           </button>
         </div>
         <p className="sidebar-hint">
-          Changes save to the backend and take effect immediately — no restart needed. Each app's
-          API key is the credential its site passes to <code>AgentBridge</code>.
+          Each app's API key is the credential its site passes to <code>AgentBridge</code>.
         </p>
       </div>
     </nav>

@@ -114,6 +114,81 @@ func (s *Service) Record(ctx context.Context, appID, eventID string) error {
 	return nil
 }
 
+// Standing is one owner's current plan + usage snapshot, returned by
+// StandingFor for the developer-facing self-service quota endpoint
+// (internal/console's GET /console/quota). Field naming mirrors
+// UserSummary (admin.go) — Tier/PlanName/Limit/Used name the same facts the
+// admin back-office already exposes for a user, so the two surfaces agree
+// on vocabulary even though this one is scoped to "me" rather than an
+// admin-chosen userId.
+type Standing struct {
+	Tier        Tier
+	PlanName    string
+	Limit       int
+	Used        int
+	PeriodStart time.Time
+	PeriodEnd   time.Time
+}
+
+// StandingFor returns ownerID's current plan and usage-this-period, keyed by
+// owner account rather than by app: quota.go's package doc and usageSince
+// both establish that usage is attributed to the app's owner and summed
+// across every app that owner has (a user can own multiple apps, and they
+// all draw from one shared monthly allowance) — Check/Record already
+// enforce at that scope via ownerStanding+usageSince, so this read-only
+// method mirrors the same scope rather than reporting per-app. The query
+// here is the single-user analog of ListUsers' row query (admin.go): same
+// users/subscriptions join, narrowed to one id instead of every account.
+//
+// PeriodEnd is the next period's start (one billing cycle after
+// PeriodStart), computed with the same monthBoundary primitive
+// currentPeriodStart uses — exclusive, matching how usageSince's
+// periodStart bound is inclusive.
+func (s *Service) StandingFor(ctx context.Context, ownerID int64) (Standing, error) {
+	if s == nil {
+		return Standing{}, fmt.Errorf("quota: service is disabled")
+	}
+
+	var quotaOverride sql.NullInt64
+	var tier string
+	var startedAt time.Time
+	row := s.db.QueryRowContext(ctx, `
+		SELECT COALESCE(sub.tier, $2),
+		       sub.monthly_quota,
+		       COALESCE(sub.started_at, now())
+		  FROM users u
+		  LEFT JOIN subscriptions sub ON sub.user_id = u.id
+		 WHERE u.id = $1`,
+		ownerID, string(DefaultTier))
+	err := row.Scan(&tier, &quotaOverride, &startedAt)
+	if err != nil {
+		return Standing{}, fmt.Errorf("quota: resolve standing: %w", err)
+	}
+
+	st := ownerStandingRow{ownerID: ownerID, tier: Tier(tier), startedAt: startedAt}
+	if quotaOverride.Valid {
+		v := int(quotaOverride.Int64)
+		st.quotaOverride = &v
+	}
+
+	now := time.Now()
+	periodStart := currentPeriodStart(startedAt, now)
+	used, err := s.usageSince(ctx, ownerID, periodStart)
+	if err != nil {
+		return Standing{}, err
+	}
+	periodEnd := nextPeriodBoundary(startedAt, periodStart)
+
+	return Standing{
+		Tier:        st.tier,
+		PlanName:    PlanFor(st.tier).Name,
+		Limit:       st.limit(),
+		Used:        used,
+		PeriodStart: periodStart,
+		PeriodEnd:   periodEnd,
+	}, nil
+}
+
 // ownerStanding resolves appID to its owner and the billing facts needed to
 // compute a limit, in one query. ok is false when the app is unknown or has
 // no owner_id (an unowned app is not billable).
@@ -225,6 +300,25 @@ func currentPeriodStart(startedAt, now time.Time) time.Time {
 		prevYear--
 	}
 	return monthBoundary(prevYear, prevMonth, anchorDay, startedAt, loc)
+}
+
+// nextPeriodBoundary returns the boundary one billing cycle after
+// periodStart (itself assumed to already be a boundary returned by
+// currentPeriodStart, anchored to startedAt) — i.e. the current period's
+// end / the next period's start. It steps periodStart's (year, month)
+// forward by one and re-applies monthBoundary's same clamp-to-last-day
+// rule, so a 31st anchor rolling out of a clamped short month still lands
+// on the correct following boundary (e.g. an anchor of the 31st, with the
+// current period start clamped to Feb 28, ends at Mar 31, not Mar 28).
+func nextPeriodBoundary(startedAt, periodStart time.Time) time.Time {
+	loc := startedAt.Location()
+	periodStart = periodStart.In(loc)
+	year, month := periodStart.Year(), periodStart.Month()+1
+	if month > time.December {
+		month = time.January
+		year++
+	}
+	return monthBoundary(year, month, startedAt.Day(), startedAt, loc)
 }
 
 // monthBoundary builds the period-boundary instant in (year, month) for the
