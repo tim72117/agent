@@ -59,6 +59,47 @@
   color: #3d3530;
 }
 
+/* Assistant bubbles render sanitized Markdown (see renderMarkdown in
+   App.vue) instead of plain text, so pre-wrap is dropped in favor of
+   normal block flow and the injected HTML gets its own spacing. */
+.bubble-markdown {
+  white-space: normal;
+}
+.bubble-markdown :first-child {
+  margin-top: 0;
+}
+.bubble-markdown :last-child {
+  margin-bottom: 0;
+}
+.bubble-markdown p,
+.bubble-markdown ul,
+.bubble-markdown ol {
+  margin: 0.4em 0;
+}
+.bubble-markdown ul,
+.bubble-markdown ol {
+  padding-left: 1.4em;
+}
+.bubble-markdown code {
+  background: rgba(0, 0, 0, 0.06);
+  border-radius: 4px;
+  padding: 0.1em 0.35em;
+  font-size: 0.9em;
+}
+.bubble-markdown pre {
+  background: rgba(0, 0, 0, 0.06);
+  border-radius: 8px;
+  padding: 8px 10px;
+  overflow-x: auto;
+}
+.bubble-markdown pre code {
+  background: none;
+  padding: 0;
+}
+.bubble-markdown a {
+  color: #a56a34;
+}
+
 /* Composer (input row): pill-shaped card with a borderless input and a
    circular accent send button, adapted from shuttle's .composer-row/
    .composer input/.composer button. variant="plain" on the v-text-field
