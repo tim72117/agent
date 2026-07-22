@@ -1,0 +1,222 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>費用方案 — onagent</title>
+  <meta
+    name="description"
+    content="onagent 目前在早期開放階段完全免費：每個 app 每月 100 次 prompt，不需要信用卡。"
+  />
+  <style>
+    :root {
+      --bg: #0d0b07;
+      --bg-2: #100d08;
+      --panel: #1a160e;
+      --border: #342d1c;
+      --border-soft: #241f13;
+      --text: #f5f1e8;
+      --text-2: #a89b82;
+      --text-3: #71664f;
+      --accent: #c9a24b;
+      --accent-2: #e0c98a;
+      --accent-soft: rgba(201, 162, 75, 0.12);
+      --ok: #7fbf7f;
+      --grad: linear-gradient(135deg, #c9a24b 0%, #e0c98a 100%);
+      --grad-text: linear-gradient(120deg, #f0dfae 0%, #c9a24b 55%, #9c7a2e 100%);
+      --shadow: 0 20px 60px -20px rgba(0, 0, 0, 0.6);
+      --shadow-glow: 0 0 0 1px rgba(201, 162, 75, 0.22), 0 24px 70px -24px rgba(201, 162, 75, 0.32);
+      --max: 1160px;
+      --sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'PingFang TC', 'Microsoft JhengHei', sans-serif;
+      --mono: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--sans);
+      font-size: 16px;
+      line-height: 1.6;
+      -webkit-font-smoothing: antialiased;
+    }
+    a { color: inherit; text-decoration: none; }
+    h1, h2, h3 { margin: 0; letter-spacing: -0.01em; line-height: 1.25; }
+    p { margin: 0; }
+    ul { margin: 0; padding: 0; list-style: none; }
+    ::selection { background: rgba(201, 162, 75, 0.32); }
+
+    .wrap { width: 100%; max-width: var(--max); margin: 0 auto; padding: 0 24px; }
+    .bg-fx {
+      position: fixed; inset: 0; z-index: -1; pointer-events: none;
+      background:
+        radial-gradient(60rem 40rem at 88% -10%, rgba(224, 201, 138, 0.06), transparent 60%),
+        radial-gradient(50rem 40rem at 4% 0%, rgba(201, 162, 75, 0.07), transparent 55%);
+    }
+
+    header.topbar {
+      position: sticky; top: 0; z-index: 60;
+      display: flex; align-items: center; justify-content: space-between;
+      height: 60px; padding: 0 20px;
+      background: rgba(13, 11, 7, 0.9); backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border-soft);
+    }
+    .brand { display: flex; align-items: center; gap: 9px; font-weight: 700; font-size: 15px; color: var(--text); }
+    .mark {
+      display: grid; place-items: center; width: 26px; height: 26px; border-radius: 8px;
+      background: var(--grad); color: #1a1408; font-size: 14px; font-weight: 700;
+    }
+    .brand .sep { color: var(--text-3); font-weight: 400; margin: 0 2px; }
+    .brand .tag { color: var(--text-2); font-weight: 600; font-size: 14px; }
+    .topbar-links { display: flex; align-items: center; gap: 18px; font-size: 13.5px; color: var(--text-2); }
+    .topbar-links a { color: var(--text-2); }
+    .topbar-links a:hover { color: var(--text); }
+    .lang-switch { color: var(--text-3) !important; }
+    .lang-switch:hover { color: var(--text) !important; }
+
+    .btn {
+      display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+      font-family: var(--sans); font-weight: 600; font-size: 14.5px;
+      padding: 11px 18px; border-radius: 10px; border: 1px solid transparent;
+      cursor: pointer; transition: transform 0.15s ease, box-shadow 0.2s;
+      white-space: nowrap;
+    }
+    .btn-primary { background: var(--grad); color: #1a1408; box-shadow: 0 10px 30px -10px rgba(201, 162, 75, 0.5); }
+    .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 16px 40px -12px rgba(201, 162, 75, 0.65); }
+    .btn-lg { padding: 14px 24px; font-size: 15.5px; border-radius: 11px; }
+
+    main { padding: 76px 0 100px; }
+    .head { max-width: 640px; margin: 0 auto 52px; text-align: center; }
+    .eyebrow {
+      display: inline-flex; align-items: center; gap: 8px; font-size: 12.5px; font-weight: 600;
+      color: var(--accent-2); background: var(--accent-soft); border: 1px solid rgba(201,162,75,0.3);
+      padding: 5px 12px; border-radius: 999px; margin-bottom: 18px;
+    }
+    .eyebrow .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); }
+    .head h1 { font-size: clamp(2rem, 4vw, 2.9rem); font-weight: 800; margin-bottom: 16px; }
+    .head h1 .g { background: var(--grad-text); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; }
+    .head p { color: var(--text-2); font-size: 17px; line-height: 1.75; }
+
+    .plans {
+      display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 22px;
+      max-width: 780px; margin: 0 auto;
+    }
+    .plan {
+      position: relative;
+      background: linear-gradient(180deg, var(--panel) 0%, var(--bg-2) 100%);
+      border: 1px solid rgba(201,162,75,0.32); border-radius: 20px;
+      padding: 40px 32px; box-shadow: var(--shadow-glow);
+    }
+    .plan-name { font-size: 13px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; color: var(--accent-2); margin-bottom: 10px; }
+    .plan-price { display: flex; align-items: baseline; gap: 8px; margin-bottom: 6px; }
+    .plan-price .num { font-size: 3rem; font-weight: 800; letter-spacing: -0.02em; }
+    .plan-price .per { color: var(--text-3); font-size: 14px; }
+    .plan-note { color: var(--text-2); font-size: 14.5px; margin-bottom: 28px; }
+    .plan hr { border: none; border-top: 1px solid var(--border-soft); margin: 0 0 24px; }
+    .plan ul { display: flex; flex-direction: column; gap: 13px; margin-bottom: 30px; }
+    .plan li { display: flex; align-items: flex-start; gap: 10px; font-size: 14.5px; color: var(--text-2); line-height: 1.5; }
+    .plan li svg { flex: none; width: 17px; height: 17px; margin-top: 2px; stroke: var(--ok); stroke-width: 2.2; fill: none; stroke-linecap: round; stroke-linejoin: round; }
+    .plan .btn { width: 100%; }
+
+    .plan.disabled { border-color: var(--border); box-shadow: none; opacity: 0.82; }
+    .plan.disabled li svg { stroke: var(--text-3); }
+    .soon-badge {
+      position: absolute; top: 24px; right: 24px;
+      font-size: 11px; font-weight: 700; letter-spacing: 0.04em;
+      color: var(--text-2); background: rgba(255,255,255,0.05); border: 1px solid var(--border);
+      padding: 4px 10px; border-radius: 999px;
+    }
+    .plan .btn[disabled] {
+      background: rgba(255,255,255,0.04); color: var(--text-3); box-shadow: none;
+      cursor: not-allowed; pointer-events: none; border-color: var(--border);
+    }
+
+    .foot-note { max-width: 620px; margin: 28px auto 0; text-align: center; color: var(--text-3); font-size: 13.5px; line-height: 1.7; }
+    .foot-note code { font-family: var(--mono); color: var(--accent-2); background: var(--accent-soft); padding: 2px 6px; border-radius: 5px; font-size: 12.5px; }
+
+    .future {
+      max-width: 640px; margin: 64px auto 0; text-align: center;
+      border-top: 1px solid var(--border-soft); padding-top: 40px;
+    }
+    .future h2 { font-size: 18px; font-weight: 700; margin-bottom: 10px; }
+    .future p { color: var(--text-2); font-size: 14.5px; line-height: 1.75; }
+
+    footer { border-top: 1px solid var(--border-soft); padding: 28px 0; text-align: center; color: var(--text-3); font-size: 13px; }
+
+    @media (max-width: 640px) {
+      .topbar-links a:not(.lang-switch) { display: none; }
+      .plans { grid-template-columns: 1fr; max-width: 460px; }
+      .plan { padding: 32px 24px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="bg-fx"></div>
+
+  <header class="topbar">
+    <a class="brand" href="../index.html"><span class="mark">⌘</span>onagent<span class="sep">/</span><span class="tag">費用方案</span></a>
+    <div class="topbar-links">
+      <a href="../index.html">首頁</a>
+      <a href="/docs/">文件</a>
+      <a class="lang-switch" href="/pricing/">EN</a>
+    </div>
+  </header>
+
+  <main>
+    <div class="wrap">
+      <div class="head">
+        <span class="eyebrow"><span class="dot"></span>早期開放階段</span>
+        <h1>方案很簡單。<br /><span class="g">目前只有 Free。</span></h1>
+        <p>onagent 目前處於早期開放階段——現在只有一個方案，而且是免費的。之後有付費方案時才會出現在這裡，不會提前列出還不存在的東西。</p>
+      </div>
+
+      <div class="plans">
+        <div class="plan">
+          <div class="plan-name">Free</div>
+          <div class="plan-price"><span class="num">$0</span><span class="per">/ 月</span></div>
+          <p class="plan-note">不需要信用卡。</p>
+          <hr />
+          <ul>
+            <li><svg viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5"/></svg>App 數量無上限</li>
+            <li><svg viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5"/></svg>每個 app 每月 100 次 prompt</li>
+            <li><svg viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5"/></svg>完整 console 功能——app、工具、Playground</li>
+            <li><svg viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5"/></svg><code style="font-family:var(--mono);color:var(--accent-2)">onagent</code> CLI + Agent Bridge SDK</li>
+            <li><svg viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5"/></svg>本機開發完全不需要 API key</li>
+          </ul>
+          <a class="btn btn-primary btn-lg" href="#" data-console>試試看 →</a>
+        </div>
+
+        <div class="plan disabled">
+          <span class="soon-badge">即將推出</span>
+          <div class="plan-name">Starter</div>
+          <div class="plan-price"><span class="num">—</span></div>
+          <p class="plan-note">價格尚未確定。</p>
+          <hr />
+          <ul>
+            <li><svg viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5"/></svg>比 Free 更高的每月 prompt 額度</li>
+            <li><svg viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5"/></svg>包含 Free 的所有功能，外加優先支援</li>
+            <li><svg viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5"/></svg>詳細內容仍在規劃中</li>
+          </ul>
+          <button class="btn btn-lg" disabled>尚未開放</button>
+        </div>
+      </div>
+
+      <p class="foot-note">額度用完會怎樣？Session 進行中用完的話連線不會斷，只是暫時不再回應 prompt，等下個計費週期開始就恢復；但額度用完之後才**新開**的連線，會在連線當下就被擋下來。詳細的執行邏輯見 repo 裡的 <code>docs/subscription-usage-quota-design.md</code>。</p>
+
+      <div class="future">
+        <h2>為什麼 Starter 寫「即將推出」？</h2>
+        <p>因為它真的還沒準備好——與其完全不提、或列出一個還沒定案的價格，我們選擇清楚標示「尚未開放」。等它真的定案，這裡會換成真正的數字，不會提前列。</p>
+      </div>
+    </div>
+  </main>
+
+  <footer>
+    <div class="wrap">© 2026 onagent</div>
+  </footer>
+
+  <script>
+    var CONSOLE_URL = '/app';
+    document.querySelectorAll('[data-console]').forEach(function (a) { a.setAttribute('href', CONSOLE_URL); });
+  </script>
+</body>
+</html>

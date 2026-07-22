@@ -17,4 +17,16 @@
     <loc>https://onagent.shuttle.tools/docs/</loc>
     <lastmod>2026-07-16</lastmod>
   </url>
+  <url>
+    <loc>https://onagent.shuttle.tools/pricing/</loc>
+    <lastmod>2026-07-22</lastmod>
+    <xhtml:link rel="alternate" hreflang="en" href="https://onagent.shuttle.tools/pricing/" />
+    <xhtml:link rel="alternate" hreflang="zh-Hant" href="https://onagent.shuttle.tools/zh-tw/pricing/" />
+  </url>
+  <url>
+    <loc>https://onagent.shuttle.tools/zh-tw/pricing/</loc>
+    <lastmod>2026-07-22</lastmod>
+    <xhtml:link rel="alternate" hreflang="en" href="https://onagent.shuttle.tools/pricing/" />
+    <xhtml:link rel="alternate" hreflang="zh-Hant" href="https://onagent.shuttle.tools/zh-tw/pricing/" />
+  </url>
 </urlset>
